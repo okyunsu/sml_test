@@ -9,7 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/news", tags=["news"])
+router = APIRouter()
 
 def get_news_controller() -> NewsController:
     """NewsController 의존성 주입"""

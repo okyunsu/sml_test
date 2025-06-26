@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  news-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: news-service:cpu-ultra-light
+    container_name: news-service-cpu
+    ports:
+      - "8002:8002"
+    volumes:
+      # newstun-service의 모델 디렉토리를 읽기 전용으로 마운트
+      - ../newstun-service/models:/app/models:ro
+    env_file:
+      - .env  # .env 파일에서 환경변수 로드
+    environment:
+      - PYTHONPATH=/app
+      - MODEL_NAME=${MODEL_NAME:-test123}
+      # CPU 최적화 환경변수
+      - OMP_NUM_THREADS=2
+      - TOKENIZERS_PARALLELISM=false
+      - TRANSFORMERS_OFFLINE=1
+      - PYTORCH_ENABLE_MPS_FALLBACK=1
+      # 메모리 최적화
+      - MALLOC_TRIM_THRESHOLD_=100000
+      - MALLOC_MMAP_THRESHOLD_=100000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    # 엄격한 리소스 제한 (경량화)
+    deploy:
+      resources:
+        limits:
+          memory: 2G  # 3G에서 2G로 추가 감소
+          cpus: '1.5'  # 2.0에서 1.5로 감소
+        reservations:
+          memory: 512M  # 1G에서 512M로 감소
+          cpus: '0.25'  # 0.5에서 0.25로 감소
+    # 로그 크기 제한
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3" 

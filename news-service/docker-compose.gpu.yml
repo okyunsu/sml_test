@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  news-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    ports:
+      - "8002:8002"
+    volumes:
+      # newstun-service의 모델 디렉토리를 마운트
+      - ../newstun-service/models:/app/models:ro
+      # 임시 캐시를 tmpfs로 마운트 (용량 절약)
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 2G
+    env_file:
+      - .env  # .env 파일에서 환경변수 로드
+    environment:
+      - PYTHONPATH=/app
+      - MODEL_NAME=test123  # 사용할 모델 이름
+      - CUDA_VISIBLE_DEVICES=0  # 사용할 GPU 지정
+      # 용량 최적화 환경변수
+      - HF_HOME=/tmp/huggingface
+      - TRANSFORMERS_CACHE=/tmp/transformers_cache
+      - HF_HUB_CACHE=/tmp/hf_hub_cache
+      - TORCH_HOME=/tmp/torch_cache
+      - PIP_NO_CACHE_DIR=1
+    # GPU 접근 권한 (메모리 제한 완화)
+    deploy:
+      resources:
+        limits:
+          memory: 6G  # 8G -> 6G로 감소
+        reservations:
+          memory: 2G  # 4G -> 2G로 감소
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # GPU 초기화 시간 고려
+    restart: unless-stopped 

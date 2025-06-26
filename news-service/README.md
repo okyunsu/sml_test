@@ -35,7 +35,7 @@ POST /api/v1/news/company/simple
 Content-Type: application/json
 
 {
-    "company": "삼성전자"
+  "company": "삼성전자"
 }
 ```
 
@@ -50,7 +50,7 @@ POST /api/v1/news/company/simple/analyze
 Content-Type: application/json
 
 {
-    "company": "삼성전자"
+  "company": "삼성전자"
 }
 ```
 
@@ -66,12 +66,12 @@ POST /api/v1/news/search
 Content-Type: application/json
 
 {
-    "query": "ESG",
-    "display": 10,
-    "start": 1,
-    "sort": "date",
-    "remove_duplicates": true,
-    "similarity_threshold": 0.8
+  "query": "ESG",
+  "display": 10,
+  "start": 1,
+  "sort": "date",
+  "remove_duplicates": true,
+  "similarity_threshold": 0.8
 }
 ```
 
@@ -81,12 +81,12 @@ POST /api/v1/news/company
 Content-Type: application/json
 
 {
-    "company": "삼성전자",
+  "company": "삼성전자",
     "display": 50,
-    "start": 1,
-    "sort": "date",
-    "remove_duplicates": true,
-    "similarity_threshold": 0.75
+  "start": 1,
+  "sort": "date",
+  "remove_duplicates": true,
+  "similarity_threshold": 0.75
 }
 ```
 
@@ -96,8 +96,8 @@ POST /api/v1/news/analyze-company
 Content-Type: application/json
 
 {
-    "company": "삼성전자",
-    "display": 100,
+  "company": "삼성전자",
+  "display": 100,
     "sort": "date"
 }
 ```
@@ -303,4 +303,4 @@ GET /api/v1/news/health
 
 ## 라이선스
 
-MIT License 
+MIT License

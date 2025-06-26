@@ -1,0 +1,108 @@
+# GPU 최적화 멀티스테이지 빌드 (용량 최적화)
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04 AS base
+
+# 환경변수 설정
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# 빌드 스테이지: 최소한의 패키지만 설치
+FROM base AS builder
+
+WORKDIR /build
+
+# 필수 빌드 도구만 설치
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-dev \
+    gcc \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Python 링크 설정
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# 의존성 설치 (CUDA 버전, 캐시 없이)
+COPY requirements.txt .
+
+# PyTorch 먼저 설치 (GPU 버전, 최소 구성)
+RUN pip3 install --no-cache-dir --user \
+    torch==2.0.1+cu118 \
+    torchvision==0.15.2+cu118 \
+    --index-url https://download.pytorch.org/whl/cu118
+
+# 나머지 패키지 설치
+RUN pip3 install --no-cache-dir --user -r requirements.txt
+
+# 불필요한 파일 정리
+RUN find /root/.local -name "*.pyc" -delete && \
+    find /root/.local -name "__pycache__" -type d -exec rm -rf {} + && \
+    find /root/.local -name "*.so" -exec strip {} \; 2>/dev/null || true
+
+# 런타임 스테이지: 최소 런타임만
+FROM base
+
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+WORKDIR /app
+
+# 런타임 패키지만 설치 (최소한)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-distutils \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean \
+    && apt-get autoremove -y
+
+# Python 링크 설정
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# 비root 사용자 생성
+RUN useradd --create-home --shell /bin/bash appuser
+
+# 빌드 스테이지에서 설치된 패키지 복사
+COPY --from=builder /root/.local /home/appuser/.local
+
+# 권한 설정
+RUN chown -R appuser:appuser /home/appuser/.local
+
+# 애플리케이션 코드 복사
+COPY app/ ./app/
+
+# 모델 디렉토리 생성 (외부 마운트용)
+RUN mkdir -p /app/models
+
+# 모든 파일 권한을 appuser로 변경
+RUN chown -R appuser:appuser /app
+
+# 사용자 변경
+USER appuser
+
+# PATH 환경변수에 appuser local bin 추가
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# Python 최적화 환경변수
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/app
+
+# Transformers 캐시 설정 (용량 절약)
+ENV HF_HOME=/tmp/huggingface
+ENV TRANSFORMERS_CACHE=/tmp/transformers_cache
+ENV HF_HUB_CACHE=/tmp/hf_hub_cache
+
+# 포트 노출
+EXPOSE 8002
+
+# 헬스체크 추가
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')" || exit 1
+
+# 애플리케이션 실행
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"] 

@@ -1,0 +1,31 @@
+# CPU 최적화 경량 버전 (PyTorch는 Dockerfile에서 별도 설치)
+# 핵심 웹 프레임워크
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+httpx==0.27.0
+
+# 데이터 모델링
+pydantic==2.10.0
+pydantic-settings==2.6.0
+
+# 설정 관리
+python-dotenv==1.0.0
+python-multipart==0.0.6
+
+# 기본 라이브러리
+numpy==1.24.4
+transformers==4.35.2
+accelerate==0.24.1
+
+# 참고: PyTorch CPU 버전은 Dockerfile에서 별도 설치됩니다
+# torch==2.0.1 --index-url https://download.pytorch.org/whl/cpu
+
+# 불필요한 패키지 제외:
+# - tokenizers (transformers에 포함)
+# - torch-audio (사용하지 않음)
+# - torchvision (사용하지 않음)
+# - scipy (사용하지 않음)
+# - pillow (이미지 처리 불필요)
+# - matplotlib (시각화 불필요)
+# - pandas (데이터 처리 불필요)
+# - scikit-learn (ML 라이브러리 불필요) 

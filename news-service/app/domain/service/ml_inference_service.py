@@ -10,10 +10,19 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 class MLInferenceService:
-    """파인튜닝된 모델을 사용한 ML 추론 서비스"""
+    """파인튜닝된 모델을 사용한 ML 추론 서비스 (메모리 최적화)"""
     
     def __init__(self):
-        self.models_dir = "./models"
+        # 고정된 외부 모델 경로
+        self.models_dir = "/app/models"
+        
+        # 환경변수에서 모델 이름 가져오기 (기본값: test123)
+        self.model_name = os.environ.get("MODEL_NAME", "test123")
+        
+        logger.info("=== ML 추론 서비스 초기화 시작 ===")
+        logger.info(f"모델 디렉토리: {self.models_dir}")
+        logger.info(f"사용할 모델 이름: {self.model_name}")
+        
         self.category_model = None
         self.category_tokenizer = None
         self.category_label_mapping = None
@@ -21,52 +30,150 @@ class MLInferenceService:
         self.sentiment_tokenizer = None
         self.sentiment_label_mapping = None
         
-        # 디바이스 설정
+        # 디바이스 설정 (메모리 최적화)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # GPU 메모리 최적화 설정
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()  # 기존 캐시 정리
+            torch.backends.cudnn.benchmark = False  # 메모리 절약
+            torch.backends.cudnn.deterministic = True
+        
         logger.info(f"ML 추론 서비스 초기화 - 디바이스: {self.device}")
         
+        # GPU 정보 출력 (간소화)
+        if torch.cuda.is_available():
+            logger.info(f"GPU: {torch.cuda.get_device_name(0)}")
+            total_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
+            logger.info(f"GPU 메모리: {total_memory:.1f} GB")
+        else:
+            logger.warning("CUDA를 사용할 수 없습니다. CPU 모드로 실행됩니다.")
+            
+        logger.info(f"사용할 모델: {self.model_name}")
+        
+        # 모델 디렉토리 존재 확인
+        if not os.path.exists(self.models_dir):
+            logger.error(f"모델 디렉토리가 존재하지 않습니다: {self.models_dir}")
+            raise FileNotFoundError(f"모델 디렉토리를 찾을 수 없습니다: {self.models_dir}")
+        
+        # 모델 디렉토리 내용 확인
+        try:
+            model_dirs = os.listdir(self.models_dir)
+            logger.info(f"모델 디렉토리 내용: {model_dirs}")
+        except Exception as e:
+            logger.error(f"모델 디렉토리 읽기 실패: {str(e)}")
+        
         # 모델 로드 시도
+        logger.info("모델 로드 프로세스 시작")
         self._load_models()
+        logger.info("=== ML 추론 서비스 초기화 완료 ===")
     
     def _load_models(self):
-        """파인튜닝된 모델들을 로드합니다."""
+        """파인튜닝된 모델들을 로드합니다. (메모리 최적화)"""
+        logger.info("=== 모델 로드 시작 ===")
         try:
             # 카테고리 모델 로드
-            category_model_path = os.path.join(self.models_dir, "test123_category")
+            category_model_path = os.path.join(self.models_dir, f"{self.model_name}_category")
+            logger.info(f"카테고리 모델 경로: {category_model_path}")
+            
             if os.path.exists(category_model_path):
+                logger.info("카테고리 모델 디렉토리 발견, 로드 시작")
                 self._load_category_model(category_model_path)
+                logger.info("카테고리 모델 로드 성공")
             else:
                 logger.warning(f"카테고리 모델을 찾을 수 없습니다: {category_model_path}")
             
             # 감정 모델 로드
-            sentiment_model_path = os.path.join(self.models_dir, "test123_sentiment")
+            sentiment_model_path = os.path.join(self.models_dir, f"{self.model_name}_sentiment")
+            logger.info(f"감정 모델 경로: {sentiment_model_path}")
+            
             if os.path.exists(sentiment_model_path):
+                logger.info("감정 모델 디렉토리 발견, 로드 시작")
                 self._load_sentiment_model(sentiment_model_path)
+                logger.info("감정 모델 로드 성공")
             else:
                 logger.warning(f"감정 모델을 찾을 수 없습니다: {sentiment_model_path}")
                 
+            # 모델 로드 결과 요약
+            category_loaded = self.category_model is not None
+            sentiment_loaded = self.sentiment_model is not None
+            logger.info(f"모델 로드 결과 - 카테고리: {'성공' if category_loaded else '실패'}, 감정: {'성공' if sentiment_loaded else '실패'}")
+            
+            if not category_loaded and not sentiment_loaded:
+                logger.error("모든 모델 로드에 실패했습니다. 키워드 기반 분석으로 대체됩니다.")
+            elif not category_loaded:
+                logger.warning("카테고리 모델 로드 실패. 해당 기능은 키워드 기반으로 대체됩니다.")
+            elif not sentiment_loaded:
+                logger.warning("감정 모델 로드 실패. 해당 기능은 키워드 기반으로 대체됩니다.")
+            else:
+                logger.info("모든 모델이 성공적으로 로드되었습니다!")
+                
         except Exception as e:
             logger.error(f"모델 로드 중 오류: {str(e)}")
+            logger.error(f"오류 타입: {type(e).__name__}")
+            import traceback
+            logger.error(f"스택 트레이스: {traceback.format_exc()}")
             raise
     
     def _load_category_model(self, model_path: str):
-        """카테고리 분류 모델 로드"""
+        """카테고리 분류 모델 로드 (메모리 최적화)"""
+        logger.info(f"=== 카테고리 모델 로드 시작: {model_path} ===")
         try:
-            # 토크나이저 로드
-            self.category_tokenizer = AutoTokenizer.from_pretrained(model_path)
+            # 토크나이저 로드 (캐시 비활성화)
+            logger.info("카테고리 토크나이저 로드 중...")
+            self.category_tokenizer = AutoTokenizer.from_pretrained(
+                model_path,
+                local_files_only=True,  # 로컬 파일만 사용
+                use_fast=True  # 빠른 토크나이저 사용
+            )
+            logger.info("카테고리 토크나이저 로드 완료")
             
-            # 모델 로드
-            self.category_model = AutoModelForSequenceClassification.from_pretrained(model_path)
+            # 모델 로드 (CPU 환경에 맞게 최적화)
+            logger.info("카테고리 모델 로드 옵션 설정 중...")
+            model_kwargs = {
+                "local_files_only": True,  # 로컬 파일만 사용
+                "torch_dtype": torch.float16 if self.device.type == "cuda" else torch.float32,  # 반정밀도 사용
+            }
+            
+            # accelerate가 있는 경우에만 low_cpu_mem_usage 사용
+            try:
+                import accelerate
+                model_kwargs["low_cpu_mem_usage"] = True
+                logger.info("accelerate 패키지 발견, low_cpu_mem_usage 옵션 활성화")
+            except ImportError:
+                logger.info("accelerate 패키지가 없어 low_cpu_mem_usage 옵션을 사용하지 않습니다")
+            
+            logger.info(f"모델 로드 옵션: {model_kwargs}")
+            logger.info("카테고리 모델 로드 중... (시간이 걸릴 수 있습니다)")
+            
+            self.category_model = AutoModelForSequenceClassification.from_pretrained(
+                model_path,
+                **model_kwargs
+            )
+            logger.info("카테고리 모델 객체 생성 완료")
+            
+            logger.info(f"모델을 디바이스로 이동 중: {self.device}")
             self.category_model.to(self.device)
             self.category_model.eval()
+            logger.info("카테고리 모델 디바이스 이동 및 평가 모드 설정 완료")
+            
+            # 메모리 정리
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logger.info("GPU 메모리 캐시 정리 완료")
             
             # 라벨 매핑 로드
             label_encoder_path = os.path.join(model_path, "label_encoder.json")
+            logger.info(f"라벨 인코더 파일 확인: {label_encoder_path}")
+            
             if os.path.exists(label_encoder_path):
+                logger.info("라벨 인코더 파일 발견, 로드 중...")
                 with open(label_encoder_path, "r", encoding="utf-8") as f:
                     self.category_label_mapping = json.load(f)
+                logger.info(f"라벨 인코더 로드 완료: {self.category_label_mapping}")
             else:
                 # 기본 라벨 매핑
+                logger.warning("라벨 인코더 파일이 없어 기본 매핑 사용")
                 self.category_label_mapping = {
                     "0": "E",
                     "1": "G", 
@@ -80,18 +187,44 @@ class MLInferenceService:
             
         except Exception as e:
             logger.error(f"카테고리 모델 로드 실패: {str(e)}")
+            logger.error(f"오류 타입: {type(e).__name__}")
+            import traceback
+            logger.error(f"스택 트레이스: {traceback.format_exc()}")
             raise
     
     def _load_sentiment_model(self, model_path: str):
-        """감정 분석 모델 로드"""
+        """감정 분석 모델 로드 (메모리 최적화)"""
         try:
-            # 토크나이저 로드
-            self.sentiment_tokenizer = AutoTokenizer.from_pretrained(model_path)
+            # 토크나이저 로드 (캐시 비활성화)
+            self.sentiment_tokenizer = AutoTokenizer.from_pretrained(
+                model_path,
+                local_files_only=True,  # 로컬 파일만 사용
+                use_fast=True  # 빠른 토크나이저 사용
+            )
             
-            # 모델 로드
-            self.sentiment_model = AutoModelForSequenceClassification.from_pretrained(model_path)
+            # 모델 로드 (CPU 환경에 맞게 최적화)
+            model_kwargs = {
+                "local_files_only": True,  # 로컬 파일만 사용
+                "torch_dtype": torch.float16 if self.device.type == "cuda" else torch.float32,  # 반정밀도 사용
+            }
+            
+            # accelerate가 있는 경우에만 low_cpu_mem_usage 사용
+            try:
+                import accelerate
+                model_kwargs["low_cpu_mem_usage"] = True
+            except ImportError:
+                logger.info("accelerate 패키지가 없어 low_cpu_mem_usage 옵션을 사용하지 않습니다")
+            
+            self.sentiment_model = AutoModelForSequenceClassification.from_pretrained(
+                model_path,
+                **model_kwargs
+            )
             self.sentiment_model.to(self.device)
             self.sentiment_model.eval()
+            
+            # 메모리 정리
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             
             # 라벨 매핑 로드
             label_encoder_path = os.path.join(model_path, "label_encoder.json")

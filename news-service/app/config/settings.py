@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # ML 서비스 연동 설정 (newstun-service와 통신)
     ml_service_url: str = os.getenv("ML_SERVICE_URL", "http://localhost:8004")
     
+    # 모델 설정
+    model_name: str = os.getenv("MODEL_NAME", "test123")
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
