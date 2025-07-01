@@ -25,9 +25,16 @@ class Settings(BaseSettings):
     # 모델 설정
     model_name: str = os.getenv("MODEL_NAME", "test123")
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    # Redis 설정
+    redis_host: str = os.getenv("REDIS_HOST", "localhost")
+    redis_port: int = int(os.getenv("REDIS_PORT", "6379"))
+    redis_db: int = int(os.getenv("REDIS_DB", "0"))
+    
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": False,
+        "protected_namespaces": ('settings_',)  # Pydantic 경고 해결
+    }
 
 # 전역 설정 인스턴스
 settings = Settings() 

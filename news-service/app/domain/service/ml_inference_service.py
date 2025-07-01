@@ -7,6 +7,11 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import numpy as np
 from datetime import datetime
 
+# HuggingFace 완전 오프라인 모드 강제 설정
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_DATASETS_OFFLINE"] = "1"
+
 logger = logging.getLogger(__name__)
 
 class MLInferenceService:
@@ -119,20 +124,26 @@ class MLInferenceService:
         """카테고리 분류 모델 로드 (메모리 최적화)"""
         logger.info(f"=== 카테고리 모델 로드 시작: {model_path} ===")
         try:
-            # 토크나이저 로드 (캐시 비활성화)
+            # 토크나이저 로드 (완전 오프라인 모드)
             logger.info("카테고리 토크나이저 로드 중...")
             self.category_tokenizer = AutoTokenizer.from_pretrained(
                 model_path,
                 local_files_only=True,  # 로컬 파일만 사용
-                use_fast=True  # 빠른 토크나이저 사용
+                use_fast=True,  # 빠른 토크나이저 사용
+                trust_remote_code=False,  # 원격 코드 실행 금지
+                token=False,  # 인증 토큰 사용 안함 (deprecated: use_auth_token)
             )
             logger.info("카테고리 토크나이저 로드 완료")
             
-            # 모델 로드 (CPU 환경에 맞게 최적화)
+            # 모델 로드 (완전 오프라인 모드)
             logger.info("카테고리 모델 로드 옵션 설정 중...")
             model_kwargs = {
                 "local_files_only": True,  # 로컬 파일만 사용
                 "torch_dtype": torch.float16 if self.device.type == "cuda" else torch.float32,  # 반정밀도 사용
+                "trust_remote_code": False,  # 원격 코드 실행 금지
+                "token": False,  # 인증 토큰 사용 안함 (deprecated: use_auth_token)
+                "force_download": False,  # 강제 다운로드 금지
+                "resume_download": False,  # 재개 다운로드 금지
             }
             
             # accelerate가 있는 경우에만 low_cpu_mem_usage 사용
@@ -195,17 +206,23 @@ class MLInferenceService:
     def _load_sentiment_model(self, model_path: str):
         """감정 분석 모델 로드 (메모리 최적화)"""
         try:
-            # 토크나이저 로드 (캐시 비활성화)
+            # 토크나이저 로드 (완전 오프라인 모드)
             self.sentiment_tokenizer = AutoTokenizer.from_pretrained(
                 model_path,
                 local_files_only=True,  # 로컬 파일만 사용
-                use_fast=True  # 빠른 토크나이저 사용
+                use_fast=True,  # 빠른 토크나이저 사용
+                trust_remote_code=False,  # 원격 코드 실행 금지
+                token=False,  # 인증 토큰 사용 안함 (deprecated: use_auth_token)
             )
             
-            # 모델 로드 (CPU 환경에 맞게 최적화)
+            # 모델 로드 (완전 오프라인 모드)
             model_kwargs = {
                 "local_files_only": True,  # 로컬 파일만 사용
                 "torch_dtype": torch.float16 if self.device.type == "cuda" else torch.float32,  # 반정밀도 사용
+                "trust_remote_code": False,  # 원격 코드 실행 금지
+                "token": False,  # 인증 토큰 사용 안함 (deprecated: use_auth_token)
+                "force_download": False,  # 강제 다운로드 금지
+                "resume_download": False,  # 재개 다운로드 금지
             }
             
             # accelerate가 있는 경우에만 low_cpu_mem_usage 사용

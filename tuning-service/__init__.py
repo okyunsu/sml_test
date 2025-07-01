@@ -1,3 +1,0 @@
-"""
-ESG Fine-tuning Service
-""" 

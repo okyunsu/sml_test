@@ -21,6 +21,10 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(news_router, prefix="/api/v1/news", tags=["news"])
 
+# 대시보드 라우터 추가
+from .api.dashboard_router import router as dashboard_router
+app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["dashboard"])
+
 @app.get("/")
 async def root():
     return {"message": "News Service is running"}

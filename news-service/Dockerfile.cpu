@@ -21,13 +21,10 @@ RUN apt-get update && apt-get install -y \
 # CPU 전용 requirements 복사
 COPY requirements-cpu.txt .
 
-# PyTorch CPU 버전을 먼저 설치하고, 나머지 의존성 설치
+# PyTorch CPU 버전을 먼저 설치하고, requirements-cpu.txt의 나머지 의존성 설치
 RUN pip install --no-cache-dir --user --upgrade pip setuptools wheel && \
     pip install --no-cache-dir --user torch==2.0.1 --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir --user transformers==4.35.2 numpy==1.24.4 && \
-    pip install --no-cache-dir --user fastapi==0.115.0 uvicorn[standard]==0.30.0 httpx==0.27.0 && \
-    pip install --no-cache-dir --user pydantic==2.10.0 pydantic-settings==2.6.0 && \
-    pip install --no-cache-dir --user python-dotenv==1.0.0 python-multipart==0.0.6
+    pip install --no-cache-dir --user -r requirements-cpu.txt
 
 # 불필요한 파일 완전 제거
 RUN find /root/.local -name "*.pyc" -delete && \

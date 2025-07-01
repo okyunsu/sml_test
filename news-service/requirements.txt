@@ -16,6 +16,10 @@ torch>=2.0.0,<2.1.0
 transformers>=4.40.0,<4.45.0
 numpy>=1.24.0,<1.26.0
 
+# Redis & Background Workers (새로 추가)
+redis>=5.0.0
+celery[redis]>=5.3.0
+
 # 선택적 패키지 (필요시에만 설치)
 # tokenizers>=0.15.0  # transformers에 포함됨
 # torch-audio  # 불필요
