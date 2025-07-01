@@ -1,14 +1,17 @@
+"""분석 워커 - 의존성 주입 적용"""
 import asyncio
 from datetime import datetime
 from typing import List
 from celery import current_task
 from .celery_app import celery_app
-from ..core.redis_client import redis_client
-from ..domain.controller.news_controller import NewsController
-from ..domain.model.news_dto import SimpleCompanySearchRequest
+from app.core.dependencies import setup_dependencies, get_dependency
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Worker에서 의존성 주입 설정
+setup_dependencies()
+container = get_dependency()
 
 
 @celery_app.task
@@ -17,15 +20,25 @@ def test_celery_worker():
     try:
         logger.info("Celery Worker 테스트 작업 시작")
         
-        # 간단한 Redis 연결 테스트
-        redis_client.set_json("test:celery", {"status": "working", "timestamp": datetime.now().isoformat()}, expire=300)
+        # 비동기 함수를 동기 환경에서 실행
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         
-        logger.info("Celery Worker 테스트 작업 완료")
-        return {"status": "success", "message": "Celery Worker is working!", "timestamp": datetime.now().isoformat()}
-        
+        try:
+            workflow_service = container.get("analysis_workflow_service")
+            result = loop.run_until_complete(workflow_service.test_redis_connection())
+            logger.info("Celery Worker 테스트 작업 완료")
+            return result
+        finally:
+            loop.close()
+            
     except Exception as e:
         logger.error(f"Celery Worker 테스트 실패: {str(e)}")
-        return {"status": "error", "message": str(e)}
+        return {
+            "status": "error", 
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 
 @celery_app.task(bind=True)
@@ -44,8 +57,12 @@ def analyze_companies_periodic(self, companies: List[str]):
         asyncio.set_event_loop(loop)
         
         try:
-            result = loop.run_until_complete(_analyze_companies_async(companies))
-            logger.info(f"주기적 뉴스 분석 완료: {len(result)}개 회사 처리")
+            workflow_service = container.get("analysis_workflow_service")
+            result = loop.run_until_complete(workflow_service.analyze_multiple_companies(companies))
+            
+            success_count = len([r for r in result.values() if r["status"] == "success"])
+            logger.info(f"주기적 뉴스 분석 완료: {success_count}/{len(companies)}개 회사 성공")
+            
             return result
         finally:
             loop.close()
@@ -54,84 +71,6 @@ def analyze_companies_periodic(self, companies: List[str]):
         logger.error(f"주기적 뉴스 분석 실패: {str(e)}")
         # Celery에서 재시도를 위해 예외를 다시 발생
         self.retry(exc=e, countdown=300, max_retries=3)  # 5분 후 재시도, 최대 3번
-
-
-async def _analyze_companies_async(companies: List[str]) -> dict:
-    """비동기로 회사들의 뉴스를 분석"""
-    
-    results = {}
-    controller = NewsController()
-    
-    for company in companies:
-        try:
-            logger.info(f"{company} 뉴스 분석 시작")
-            
-            # 간소화된 뉴스 분석 요청 생성
-            request = SimpleCompanySearchRequest(company=company)
-            
-            # 뉴스 분석 실행 (기존 API와 동일한 로직 사용)
-            analysis_result = await controller.analyze_company_news(
-                request.to_optimized_news_search_request()
-            )
-            
-            # 분석 결과를 딕셔너리로 변환
-            result_dict = analysis_result.dict() if hasattr(analysis_result, 'dict') else analysis_result
-            
-            # Redis에 캐시 저장
-            cache_key = f"analysis:{company}:latest"
-            cache_data = {
-                "company": company,
-                "analysis_result": result_dict,
-                "analyzed_at": datetime.now().isoformat(),
-                "cache_key": cache_key
-            }
-            
-            # 24시간 캐시 (86400초)
-            redis_client.set_json(cache_key, cache_data, expire=86400)
-            
-            # 분석 히스토리에도 저장
-            history_key = f"analysis:{company}:history"
-            history_data = redis_client.get_json(history_key) or []
-            
-            # 최신 분석 결과를 히스토리 앞쪽에 추가
-            history_data.insert(0, cache_data)
-            
-            # 최대 50개까지만 보관
-            if len(history_data) > 50:
-                history_data = history_data[:50]
-            
-            # 히스토리 저장 (7일간 보관)
-            redis_client.set_json(history_key, history_data, expire=604800)
-            
-            results[company] = {
-                "status": "success",
-                "analyzed_at": cache_data["analyzed_at"],
-                "news_count": len(result_dict.get("analyzed_news", [])),
-                "cache_key": cache_key
-            }
-            
-            logger.info(f"{company} 뉴스 분석 완료 - {results[company]['news_count']}개 뉴스")
-            
-        except Exception as e:
-            logger.error(f"{company} 뉴스 분석 실패: {str(e)}")
-            results[company] = {
-                "status": "error",
-                "error": str(e),
-                "analyzed_at": datetime.now().isoformat()
-            }
-    
-    # 전체 분석 상태 업데이트
-    status_data = {
-        "last_analysis_at": datetime.now().isoformat(),
-        "companies_analyzed": list(companies),
-        "results": results,
-        "total_success": len([r for r in results.values() if r["status"] == "success"]),
-        "total_error": len([r for r in results.values() if r["status"] == "error"])
-    }
-    
-    redis_client.set_json("analysis:status:latest", status_data, expire=86400)
-    
-    return results
 
 
 @celery_app.task
@@ -145,12 +84,14 @@ def analyze_single_company(company: str):
     try:
         logger.info(f"단일 회사 뉴스 분석 시작: {company}")
         
+        # 비동기 함수를 동기 환경에서 실행
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         try:
-            result = loop.run_until_complete(_analyze_companies_async([company]))
-            logger.info(f"단일 회사 뉴스 분석 완료: {company}")
+            workflow_service = container.get("analysis_workflow_service")
+            result = loop.run_until_complete(workflow_service.analyze_single_company(company))
+            logger.info(f"단일 회사 뉴스 분석 완료: {company} - {result['status']}")
             return result
         finally:
             loop.close()
@@ -166,20 +107,46 @@ def clear_old_cache():
     try:
         logger.info("오래된 캐시 데이터 정리 시작")
         
-        # 1주일 이상된 히스토리 키들 찾기
-        pattern = "analysis:*:history"
-        keys = redis_client.get_all_keys(pattern)
+        # 비동기 함수를 동기 환경에서 실행
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         
-        cleaned_count = 0
-        for key in keys:
-            history_data = redis_client.get_json(key) or []
-            if len(history_data) > 100:  # 100개 초과시 50개만 유지
-                redis_client.set_json(key, history_data[:50], expire=604800)
-                cleaned_count += 1
-        
-        logger.info(f"캐시 데이터 정리 완료: {cleaned_count}개 키 정리")
-        return {"cleaned_keys": cleaned_count}
-        
+        try:
+            workflow_service = container.get("analysis_workflow_service")
+            result = loop.run_until_complete(workflow_service.clear_old_cache())
+            logger.info(f"캐시 데이터 정리 완료: {result['cleaned_keys']}개 키 정리")
+            return result
+        finally:
+            loop.close()
+            
     except Exception as e:
         logger.error(f"캐시 데이터 정리 실패: {str(e)}")
+        raise
+
+
+@celery_app.task
+def analyze_monitored_companies():
+    """
+    설정된 모니터링 회사들의 자동 분석
+    - 환경변수나 설정 파일에서 회사 목록을 가져와서 분석
+    """
+    try:
+        dashboard_settings = container.get("dashboard_settings")
+        companies = dashboard_settings.monitored_companies
+        logger.info(f"모니터링 회사 자동 분석 시작: {companies}")
+        
+        # analyze_companies_periodic 태스크 실행
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            workflow_service = container.get("analysis_workflow_service")
+            result = loop.run_until_complete(workflow_service.analyze_multiple_companies(companies))
+            logger.info(f"모니터링 회사 자동 분석 완료")
+            return result
+        finally:
+            loop.close()
+        
+    except Exception as e:
+        logger.error(f"모니터링 회사 자동 분석 실패: {str(e)}")
         raise 

@@ -19,7 +19,7 @@ services:
       - .env  # .env 파일에서 환경변수 로드
     environment:
       - PYTHONPATH=/app
-      - MODEL_NAME=test123  # 사용할 모델 이름
+      # MODEL_NAME은 .env 파일에서 로드
       - CUDA_VISIBLE_DEVICES=0  # 사용할 GPU 지정
       # 용량 최적화 환경변수
       - HF_HOME=/tmp/huggingface

@@ -1,37 +1,63 @@
-import uvicorn
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from .api.news_router import router as news_router
+from .api.unified_router import main_router
+from .core.dependencies import setup_dependencies
+from .core.exceptions import (
+    BaseServiceException, service_exception_handler,
+    http_exception_handler, generic_exception_handler
+)
+from fastapi import HTTPException
+import logging
 
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# FastAPI 앱 생성
 app = FastAPI(
-    title="News Service",
-    description="네이버 검색 API를 활용한 뉴스 수집 마이크로서비스",
-    version="1.0.0"
+    title="뉴스 서비스 API v2.0",
+    description="스마트 검색 (캐시 우선) + 대시보드 모니터링 + 시스템 관리 - 통합 라우터",
+    version="2.0.0"
 )
 
-# CORS 설정
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 글로벌 예외 핸들러 등록
+app.add_exception_handler(BaseServiceException, service_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
 
-# 라우터 등록
-app.include_router(news_router, prefix="/api/v1/news", tags=["news"])
+# 의존성 주입 컨테이너 설정
+setup_dependencies()
+logger.info("의존성 주입 컨테이너 초기화 완료")
 
-# 대시보드 라우터 추가
-from .api.dashboard_router import router as dashboard_router
-app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["dashboard"])
+# 통합 라우터 등록
+app.include_router(main_router, tags=["API v2.0"])
 
 @app.get("/")
 async def root():
-    return {"message": "News Service is running"}
+    return {
+        "message": "뉴스 서비스 API v2.0.0 - 통합 라우터 + 스마트 캐시",
+        "features": [
+            "🔍 스마트 검색 (캐시 우선 → 실시간 폴백)",
+            "📊 대시보드 모니터링 (백그라운드 데이터)",
+            "🛠️ 시스템 관리 (헬스체크, 테스트)",
+            "⚡ Redis 캐시 최적화",
+            "🏗️ Clean Architecture + 의존성 주입"
+        ],
+        "api_endpoints": {
+            "search": "/api/v1/search/*",
+            "dashboard": "/api/v1/dashboard/*", 
+            "system": "/api/v1/system/*",
+            "docs": "/docs"
+        }
+    }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "news-service"}
+    return {
+        "status": "healthy", 
+        "version": "2.0.0",
+        "architecture": "Clean Architecture with DI"
+    }
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8002, reload=True) 
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8002) 
