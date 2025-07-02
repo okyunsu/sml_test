@@ -17,13 +17,18 @@ v2.0에서는 기존 News Service에 **통합 라우터 시스템**과 **스마�
 - **지능형 만료**: 분석 결과 24시간, 히스토리 7일 자동 관리
 - **강제 새로고침**: `force_refresh` 옵션으로 캐시 무시 가능
 
-### 3. 🏗️ 통합 라우터 아키텍처
-- **Clean Architecture**: 계층별 명확한 분리
+### 3. 🏗️ 통합 라우터 아키텍처 (리팩터링 완료)
+- **Clean Architecture**: 계층별 명확한 분리 (Presentation → Controller → Service → Infrastructure)
+- **마틴 파울러 리팩터링 적용**: 5개 서비스 완전 리팩터링
+  - Extract Class: 9개의 단일 책임 클래스로 분리
+  - Extract Method: 긴 메서드들을 작은 메서드로 분해
+  - Strategy Pattern: ML 분석 전략 패턴 적용
+  - Factory Pattern: 모델 로더 팩토리 구현
 - **의존성 주입**: 테스트 가능한 모듈화 구조
 - **에러 처리 표준화**: 일관된 예외 처리 시스템
 - **성능 최적화**: 43% 코드 감소, 응답 시간 개선
 
-## 🏗️ v2.0 아키텍처
+## 🏗️ v2.0 아키텍처 (리팩터링 완료)
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -47,6 +52,21 @@ v2.0에서는 기존 News Service에 **통합 라우터 시스템**과 **스마�
                     │ 💾 Result Cache │
                     │ 📊 History Store│
                     └─────────────────┘
+
+🏗️ Clean Architecture 적용 (리팩터링):
+┌─────────────────────────────────────────┐
+│         Presentation Layer              │ unified_router.py
+├─────────────────────────────────────────┤
+│         Controller Layer                │ news_controller, dashboard_controller
+├─────────────────────────────────────────┤
+│         Domain Layer (리팩터링 완료)     │
+│  ✅ 5개 서비스: ml_inference, news_     │
+│     analysis, news, workflow, dashboard │
+│  ✅ 전략 패턴: ml_strategies.py         │
+│  ✅ 팩토리 패턴: ml_loader.py           │
+├─────────────────────────────────────────┤
+│         Infrastructure Layer            │ http_client, redis_client, dependencies
+└─────────────────────────────────────────┘
 ```
 
 ## 📡 v2.0 대시보드 API 엔드포인트
@@ -446,6 +466,20 @@ deploy:
 - **큐 관리**: 우선순위 기반 작업 스케줄링
 
 ## 🔄 v2.0 다음 단계
+
+### ✅ 완료된 리팩터링 작업
+1. **Clean Architecture 적용 완료**
+   - 5개 서비스 완전 리팩터링 (438줄 → 50-100줄/클래스)
+   - Extract Class: 9개의 단일 책임 클래스 분리
+   - Extract Method: 긴 메서드들을 작은 메서드로 분해
+   - Strategy Pattern: ML 분석 전략 패턴 적용
+   - Factory Pattern: 모델 로더 팩토리 구현
+2. **의존성 주입 시스템 구축**
+   - 테스트 가능한 모듈화 구조
+   - 느슨한 결합 달성
+3. **코드 품질 개선**
+   - 단일 책임 원칙 준수
+   - 재사용 가능한 컴포넌트 구조
 
 ### 프론트엔드 연동
 1. **실시간 대시보드** 구현
