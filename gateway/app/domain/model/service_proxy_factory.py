@@ -16,29 +16,16 @@ class ServiceProxyFactory:
         headers: list[tuple[bytes, bytes]],
         body: Optional[bytes] = None
     ) -> httpx.Response:
-        # ✅ news-service의 API 구조에 맞게 경로 매핑
+        # ✅ news-service의 Gateway 호환 API로 단순 매핑
         if self.service_type == ServiceType.NEWS:
-            # news-service는 /api/v1/ 구조를 사용
+            # news-service에 추가된 Gateway 호환 엔드포인트로 직접 매핑
+            # /api/v1/ 접두사를 추가하기만 하면 됨
             if not path.startswith("api/v1/"):
-                # 기본 경로들을 news-service 구조에 매핑
-                if path == "search":
-                    path = "api/v1/search/news"
-                elif path.startswith("companies/"):
-                    # companies/{company} -> api/v1/search/companies/{company}
-                    path = f"api/v1/search/{path}"
-                elif path.startswith("dashboard"):
-                    # dashboard 관련 요청
-                    path = f"api/v1/{path}"
-                elif path.startswith("system"):
-                    # system 관련 요청
-                    path = f"api/v1/{path}"
-                else:
-                    # 기타 경로들은 api/v1/search/ 하위로 매핑
-                    if not path.startswith("api/"):
-                        path = f"api/v1/search/{path}"
+                path = f"api/v1/{path}"
         
         url = f"{self.base_url}/{path}"
         print(f"🔍 Requesting URL: {url}")
+        print(f"🔍 Method: {method}")
         
         # 헤더 설정
         headers_dict = {
@@ -46,19 +33,37 @@ class ServiceProxyFactory:
             'Accept': 'application/json'
         }
         
-        async with httpx.AsyncClient() as client:
+        # timeout 설정 추가 (30초)
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
+                print(f"🔍 Starting request to: {url}")
                 response = await client.request(
                     method=method,
                     url=url,
                     headers=headers_dict,
                     content=body
                 )
-                print(f"Response status: {response.status_code}")
-                print(f"Request URL: {url}")
+                print(f"✅ Response status: {response.status_code}")
+                print(f"🔍 Response headers: {dict(response.headers)}")
                 if body:
-                    print(f"Request body: {body.decode('utf-8')}")
+                    print(f"📤 Request body: {body.decode('utf-8')}")
+                if response.text:
+                    print(f"📥 Response body (first 500 chars): {response.text[:500]}")
                 return response
+                
+            except httpx.TimeoutException as e:
+                error_msg = f"Timeout error: {str(e)}"
+                print(f"⏰ {error_msg}")
+                raise HTTPException(status_code=504, detail=error_msg)
+            except httpx.ConnectError as e:
+                error_msg = f"Connection error: {str(e)}"
+                print(f"🔌 {error_msg}")
+                raise HTTPException(status_code=503, detail=error_msg)
+            except httpx.HTTPStatusError as e:
+                error_msg = f"HTTP status error: {e.response.status_code} - {e.response.text}"
+                print(f"❌ {error_msg}")
+                raise HTTPException(status_code=e.response.status_code, detail=error_msg)
             except Exception as e:
-                print(f"Request failed: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                error_msg = f"Unexpected error: {str(e)} (Type: {type(e).__name__})"
+                print(f"💥 {error_msg}")
+                raise HTTPException(status_code=500, detail=error_msg)

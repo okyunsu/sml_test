@@ -1,149 +1,469 @@
-# News Gateway API
+# 🌐 News Gateway API - 프론트엔드 개발자 가이드
 
-News Service를 위한 API Gateway입니다.
+## 📋 개요
 
-## 🚀 실행 방법
+News Gateway는 **동적 프록시 기반**의 API Gateway입니다. 모든 요청을 자동으로 News Service로 전달하며, 프론트엔드에서 간단하게 사용할 수 있습니다.
 
-### 1. 의존성 설치
+## 🚀 기본 정보
+
+- **Gateway URL**: `http://localhost:8080`
+- **News Service URL**: `http://localhost:8002` (직접 호출도 가능)
+- **API 문서**: `http://localhost:8080/docs`
+- **아키텍처**: 동적 프록시 패턴
+
+## 🔄 동적 프록시 패턴
+
+모든 API 요청은 다음 패턴을 따릅니다:
+
+```
+/gateway/v1/{service}/{path}
+```
+
+- **service**: `news` (현재 지원하는 서비스)
+- **path**: News Service의 실제 API 경로
+
+### 예시 매핑
 ```bash
-pip install -r requirements.txt
+# Gateway 요청                              →  News Service 실제 경로
+POST /gateway/v1/news/search                →  POST /search
+GET  /gateway/v1/news/dashboard/status      →  GET  /dashboard/status
 ```
 
-### 2. 환경 변수 설정
-`.env` 파일을 생성하고 다음 내용을 추가하세요:
+## 📝 API 엔드포인트 전체 목록
 
-```env
-# Gateway API 설정
-PORT=8080
+### 🎯 1. Gateway 관리
 
-# News Service URL (기본값: http://localhost:8002)
-NEWS_SERVICE_URL=http://localhost:8002
-```
-
-### 3. News Service 실행
-Gateway를 실행하기 전에 News Service가 8002 포트에서 실행 중인지 확인하세요.
-
-```bash
-# news-service 디렉토리에서
-cd ../news-service
-python -m app.main
-```
-
-### 4. Gateway 실행
-```bash
-python -m app.main
-```
-
-Gateway는 기본적으로 `http://localhost:8080`에서 실행됩니다.
-
-## 📋 API 엔드포인트
-
-### 기본 정보
-- **Base URL**: `http://localhost:8080`
-- **API Prefix**: `/gateway/v1`
-- **Documentation**: `http://localhost:8080/docs`
-
-### 주요 엔드포인트
-
-#### 1. 헬스 체크
-```
+#### 헬스체크
+```http
 GET /gateway/v1/health
 ```
-
-#### 2. 뉴스 검색
-```
-POST /gateway/v1/news/search/news
-```
-**요청 본문:**
+**설명**: Gateway 상태 확인  
+**응답 예시**:
 ```json
 {
-    "query": "삼성전자",
-    "max_results": 100,
-    "sort_by": "accuracy",
-    "category": "technology",
-    "date_from": "2024-01-01",
-    "date_to": "2024-12-31"
+  "status": "healthy",
+  "service": "news-gateway",
+  "version": "3.0.0-dynamic",
+  "target_service": "news-service",
+  "proxy_type": "dynamic"
 }
 ```
 
-#### 3. 회사 뉴스 검색
+#### 연결 테스트
+```http
+GET /gateway/v1/debug/connection
 ```
-POST /gateway/v1/news/search/companies/{company}
+**설명**: News Service 연결 상태 테스트
+
+---
+
+### 🔍 2. 뉴스 검색 기능
+
+#### 일반 뉴스 검색
+```http
+POST /gateway/v1/news/search
+Content-Type: application/json
+
+{
+  "query": "삼성전자",
+  "max_results": 10,
+  "date_from": "2024-01-01",
+  "date_to": "2024-12-31"
+}
 ```
 
-#### 4. 회사 뉴스 분석
-```
-POST /gateway/v1/news/search/companies/{company}/analyze
+**응답 예시**:
+```json
+{
+  "results": [
+    {
+      "title": "삼성전자 실적 발표",
+      "content": "...",
+      "url": "https://...",
+      "published_at": "2024-01-15T09:00:00Z",
+      "source": "연합뉴스"
+    }
+  ],
+  "total_count": 25,
+  "cache_hit": false,
+  "search_time": 1.2
+}
 ```
 
-#### 5. 대시보드 API
+#### 회사별 뉴스 검색
+```http
+POST /gateway/v1/news/companies/{company}
 ```
+
+**예시**:
+```bash
+POST /gateway/v1/news/companies/삼성전자
+POST /gateway/v1/news/companies/LG전자
+```
+
+#### 회사 뉴스 AI 분석
+```http
+POST /gateway/v1/news/companies/{company}/analyze
+```
+
+**응답 예시**:
+```json
+{
+  "company": "삼성전자",
+  "analysis": {
+    "sentiment": {
+      "positive": 0.7,
+      "negative": 0.2,
+      "neutral": 0.1
+    },
+    "esg_score": {
+      "environmental": 0.6,
+      "social": 0.8,
+      "governance": 0.7
+    },
+    "keywords": ["실적", "성장", "투자"],
+    "summary": "전반적으로 긍정적인 뉴스가 많음"
+  },
+  "cache_hit": true,
+  "analyzed_at": "2024-01-15T10:30:00Z"
+}
+```
+
+---
+
+### 📊 3. 대시보드 관리
+
+#### 전체 시스템 상태
+```http
 GET /gateway/v1/news/dashboard/status
+```
+
+**응답 예시**:
+```json
+{
+  "status": "healthy",
+  "redis_connected": true,
+  "celery_active": true,
+  "monitored_companies": 5,
+  "cache_hit_rate": 0.85,
+  "last_analysis": "2024-01-15T10:00:00Z"
+}
+```
+
+#### 모니터링 회사 목록
+```http
 GET /gateway/v1/news/dashboard/companies
-GET /gateway/v1/news/dashboard/companies/{company}/latest
 ```
 
-#### 6. 시스템 API
+#### 특정 회사 최신 분석
+```http
+GET /gateway/v1/news/dashboard/companies/{company}
 ```
+
+#### 회사 분석 히스토리
+```http
+GET /gateway/v1/news/dashboard/companies/{company}/history?limit=20
+```
+
+#### 모든 회사 최신 분석
+```http
+GET /gateway/v1/news/dashboard/analysis/latest
+```
+
+#### 수동 분석 요청
+```http
+POST /gateway/v1/news/dashboard/companies/{company}/analyze
+```
+
+---
+
+### 🗄️ 4. 캐시 관리
+
+#### 캐시 정보 조회
+```http
+GET /gateway/v1/news/cache/info
+```
+
+**응답 예시**:
+```json
+{
+  "companies": {
+    "삼성전자": {
+      "latest_exists": true,
+      "history_count": 15,
+      "last_updated": "2024-01-15T09:30:00Z"
+    }
+  },
+  "cache_settings": {
+    "cache_expire_hours": 24,
+    "history_max_count": 100
+  }
+}
+```
+
+#### 특정 회사 캐시 삭제
+```http
+DELETE /gateway/v1/news/cache/{company}
+```
+
+---
+
+### 🔧 5. 시스템 관리
+
+#### 시스템 헬스체크
+```http
 GET /gateway/v1/news/system/health
-POST /gateway/v1/news/system/test/celery
 ```
 
-## 🔧 설정
+#### Celery 작업자 테스트
+```http
+GET /gateway/v1/news/system/celery/test
+GET /gateway/v1/news/system/celery/result
+```
 
-### 환경 변수
-- `PORT`: Gateway가 실행될 포트 (기본값: 8080)
-- `NEWS_SERVICE_URL`: News Service의 URL (기본값: http://localhost:8002)
+---
 
-### 경로 매핑
-Gateway는 다음과 같이 요청을 News Service로 매핑합니다:
+## 💻 프론트엔드 사용 예시
 
-| Gateway 경로 | News Service 경로 |
-|-------------|------------------|
-| `/gateway/v1/news/search/*` | `/api/v1/search/*` |
-| `/gateway/v1/news/dashboard/*` | `/api/v1/dashboard/*` |
-| `/gateway/v1/news/system/*` | `/api/v1/system/*` |
+### JavaScript/TypeScript
 
-## 🧪 테스트
+```typescript
+// 기본 설정
+const GATEWAY_URL = 'http://localhost:8080';
+const API_BASE = `${GATEWAY_URL}/gateway/v1/news`;
 
-### 1. 헬스 체크
+// 뉴스 검색
+async function searchNews(query: string) {
+  const response = await fetch(`${API_BASE}/search`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      max_results: 10,
+      date_from: '2024-01-01',
+      date_to: '2024-12-31'
+    })
+  });
+  
+  return await response.json();
+}
+
+// 회사 뉴스 검색
+async function getCompanyNews(company: string) {
+  const response = await fetch(`${API_BASE}/companies/${encodeURIComponent(company)}`, {
+    method: 'POST'
+  });
+  
+  return await response.json();
+}
+
+// 회사 뉴스 분석
+async function analyzeCompanyNews(company: string) {
+  const response = await fetch(`${API_BASE}/companies/${encodeURIComponent(company)}/analyze`, {
+    method: 'POST'
+  });
+  
+  return await response.json();
+}
+
+// 대시보드 상태
+async function getDashboardStatus() {
+  const response = await fetch(`${API_BASE}/dashboard/status`);
+  return await response.json();
+}
+
+// 캐시 정보
+async function getCacheInfo() {
+  const response = await fetch(`${API_BASE}/cache/info`);
+  return await response.json();
+}
+```
+
+### React Hook 예시
+
+```typescript
+import { useState, useEffect } from 'react';
+
+function useNewsSearch() {
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const searchNews = async (query: string) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`${API_BASE}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, max_results: 10 })
+      });
+      
+      if (!response.ok) throw new Error('검색 실패');
+      
+      const data = await response.json();
+      setResults(data.results);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { results, loading, error, searchNews };
+}
+```
+
+### Python 예시
+
+```python
+import requests
+import json
+
+class NewsGatewayClient:
+    def __init__(self, base_url="http://localhost:8080"):
+        self.base_url = f"{base_url}/gateway/v1/news"
+    
+    def search_news(self, query, max_results=10):
+        """뉴스 검색"""
+        response = requests.post(
+            f"{self.base_url}/search",
+            json={
+                "query": query,
+                "max_results": max_results,
+                "date_from": "2024-01-01",
+                "date_to": "2024-12-31"
+            }
+        )
+        return response.json()
+    
+    def get_company_news(self, company):
+        """회사 뉴스 검색"""
+        response = requests.post(f"{self.base_url}/companies/{company}")
+        return response.json()
+    
+    def analyze_company_news(self, company):
+        """회사 뉴스 분석"""
+        response = requests.post(f"{self.base_url}/companies/{company}/analyze")
+        return response.json()
+    
+    def get_dashboard_status(self):
+        """대시보드 상태"""
+        response = requests.get(f"{self.base_url}/dashboard/status")
+        return response.json()
+
+# 사용 예시
+client = NewsGatewayClient()
+news_results = client.search_news("삼성전자")
+company_analysis = client.analyze_company_news("삼성전자")
+```
+
+---
+
+## 🔧 개발 환경 설정
+
+### Docker Compose 실행
 ```bash
+# 전체 서비스 실행
+docker-compose up -d
+
+# 로그 확인
+docker-compose logs -f gateway
+docker-compose logs -f news-service
+```
+
+### 테스트 실행
+```bash
+# 모든 엔드포인트 테스트
+chmod +x test-endpoints.sh
+./test-endpoints.sh
+```
+
+---
+
+## 🚨 에러 처리
+
+### 일반적인 HTTP 상태 코드
+- **200**: 성공
+- **400**: 잘못된 요청 (필수 파라미터 누락 등)
+- **404**: 경로 없음 또는 리소스 없음
+- **500**: 서버 내부 오류
+
+### 에러 응답 형식
+```json
+{
+  "detail": "에러 메시지",
+  "error_type": "ValidationError",
+  "status_code": 400
+}
+```
+
+---
+
+## 🌟 주요 특징
+
+### ✅ 장점
+- **🚀 간단한 API 구조**: 일관된 패턴
+- **🗄️ 자동 캐시**: 응답 속도 최적화
+- **📊 실시간 대시보드**: 시스템 상태 모니터링
+- **🔄 동적 프록시**: 새 API 자동 지원
+- **🎯 타입 안전**: TypeScript 지원
+
+### ⚡ 성능 최적화
+- **캐시 우선**: 검색 30분, 분석 60분 캐시
+- **백그라운드 처리**: 무거운 작업은 Celery로
+- **Redis 캐시**: 빠른 응답 시간
+
+---
+
+## 🆘 문제 해결
+
+### 연결 문제
+```bash
+# Gateway 상태 확인
 curl http://localhost:8080/gateway/v1/health
+
+# 연결 테스트
+curl http://localhost:8080/gateway/v1/debug/connection
 ```
 
-### 2. 뉴스 검색 테스트
+### 캐시 문제
 ```bash
-curl -X POST "http://localhost:8080/gateway/v1/news/search/news" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "삼성전자",
-    "max_results": 10
-  }'
+# 캐시 정보 확인
+curl http://localhost:8080/gateway/v1/news/cache/info
+
+# 특정 회사 캐시 삭제  
+curl -X DELETE http://localhost:8080/gateway/v1/news/cache/삼성전자
 ```
 
-### 3. 회사 뉴스 검색 테스트
+### 로그 확인
 ```bash
-curl -X POST "http://localhost:8080/gateway/v1/news/search/companies/삼성전자"
+# Gateway 로그
+docker-compose logs -f gateway
+
+# News Service 로그
+docker-compose logs -f news-service
+
+# Redis 로그
+docker-compose logs -f redis
 ```
 
-## 📝 로그
+---
 
-Gateway는 다음 정보를 로그로 출력합니다:
-- 요청 URL과 메서드
-- 요청 본문 (있는 경우)
-- 응답 상태 코드
-- 에러 정보 (있는 경우)
+## 📞 지원
 
-## 🔍 문제 해결
+- **API 문서**: http://localhost:8080/docs
+- **Swagger UI**: 인터랙티브 API 테스트
+- **Docker 상태**: `docker-compose ps`
 
-### News Service 연결 오류
-1. News Service가 실행 중인지 확인
-2. `NEWS_SERVICE_URL` 환경 변수 확인
-3. 방화벽/네트워크 설정 확인
+---
 
-### JSON 파싱 오류
-1. 요청 본문의 JSON 형식 확인
-2. Content-Type 헤더 확인 (`application/json`)
+## 🔮 향후 계획
 
-### 경로 매핑 오류
-Gateway는 자동으로 경로를 News Service API 구조에 맞게 변환합니다. 직접 News Service 경로를 사용하려면 `/gateway/v1/news/api/v1/...` 형태로 요청하세요. 
+- [ ] 인증/권한 시스템 추가
+- [ ] Rate Limiting 구현
+- [ ] 로그 수집 및 모니터링 강화
+- [ ] 멀티 서비스 지원 확장 

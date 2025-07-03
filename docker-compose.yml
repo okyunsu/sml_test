@@ -1,0 +1,201 @@
+version: '3.8'
+
+services:
+  # Redis 서버 (캐시용)
+  redis:
+    image: redis:7-alpine
+    container_name: news-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - news-service-network
+
+  # News Service (메인 API 서버)
+  news-service:
+    build:
+      context: ./news-service
+      dockerfile: Dockerfile.cpu
+    container_name: news-service-api
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./newstun-service/models:/app/models:ro
+    env_file:
+      - ./news-service/.env
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      # HuggingFace 완전 오프라인 모드
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+      - HF_DATASETS_OFFLINE=1
+      # CPU 최적화 환경변수
+      - OMP_NUM_THREADS=2
+      - TOKENIZERS_PARALLELISM=false
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    networks:
+      - news-service-network
+
+  # Gateway Service (프론트엔드용 API 게이트웨이)
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: news-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - NEWS_SERVICE_URL=http://news-service:8002
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/gateway/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    depends_on:
+      news-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.3'
+        reservations:
+          memory: 64M
+          cpus: '0.05'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    networks:
+      - news-service-network
+
+  # Celery Worker (백그라운드 뉴스 분석)
+  celery-worker:
+    build:
+      context: ./news-service
+      dockerfile: Dockerfile.cpu
+    container_name: news-celery-worker
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=1
+    volumes:
+      - ./newstun-service/models:/app/models:ro
+    env_file:
+      - ./news-service/.env
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - C_FORCE_ROOT=1  # Celery root 실행 허용
+      # HuggingFace 완전 오프라인 모드
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+      - HF_DATASETS_OFFLINE=1
+      # CPU 최적화
+      - OMP_NUM_THREADS=1
+      - TOKENIZERS_PARALLELISM=false
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - news-service-network
+
+  # Celery Beat (스케줄러 - 30분마다 삼성전자, LG전자 분석)
+  celery-beat:
+    build:
+      context: ./news-service
+      dockerfile: Dockerfile.cpu
+    container_name: news-celery-beat
+    command: celery -A app.workers.celery_app beat --loglevel=info
+    env_file:
+      - ./news-service/.env
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - C_FORCE_ROOT=1
+      # HuggingFace 완전 오프라인 모드
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+      - HF_DATASETS_OFFLINE=1
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - news-service-network
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  news-service-network:
+    driver: bridge 

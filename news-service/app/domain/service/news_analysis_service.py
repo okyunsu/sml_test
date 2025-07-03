@@ -94,17 +94,27 @@ class NewsAnalysisService:
     
     async def _analyze_with_local_ml_service(self, news_response: NewsSearchResponse) -> Dict[str, Any]:
         """로컬 ML 서비스로 분석"""
-        analyzed_news = await self._analyze_news_batch_local(news_response.items)
-        analysis_summary = await self._create_analysis_summary_async(analyzed_news)
+        print(f"📊 로컬 ML 서비스로 뉴스 분석 시작: {len(news_response.items)}개 아이템")
         
-        return {
-            "analyzed_news": [item.dict() for item in analyzed_news],
-            "analysis_summary": analysis_summary.dict(),
-            "service_status": "local_ml"
-        }
+        try:
+            analyzed_news = await self._analyze_news_batch_local(news_response.items)
+            print(f"✅ 로컬 ML 서비스 분석 완료: {len(analyzed_news)}개 결과")
+            
+            analysis_summary = await self._create_analysis_summary_async(analyzed_news)
+            
+            return {
+                "analyzed_news": [item.dict() for item in analyzed_news],
+                "analysis_summary": analysis_summary.dict(),
+                "service_status": "local_ml"
+            }
+        except Exception as e:
+            print(f"❌ 로컬 ML 서비스 분석 실패: {str(e)}")
+            raise
     
     async def _race_external_ml_vs_fallback(self, news_response: NewsSearchResponse) -> Dict[str, Any]:
         """외부 ML 서비스와 폴백 분석 경쟁"""
+        print(f"🏁 외부 ML vs 폴백 분석 경쟁 시작: {len(news_response.items)}개 아이템")
+        
         analysis_request = self._create_analysis_request(news_response)
         
         # 외부 ML 서비스와 폴백 분석을 동시에 시작
@@ -113,31 +123,75 @@ class NewsAnalysisService:
         
         try:
             # 외부 ML 서비스를 먼저 시도 (60초 타임아웃)
+            print("🌐 외부 ML 서비스 시도 중...")
             ml_results = await asyncio.wait_for(ml_task, timeout=60.0)
             fallback_task.cancel()
+            print("✅ 외부 ML 서비스 성공")
             return {**ml_results, "service_status": "external_ml"}
-        except (asyncio.TimeoutError, Exception):
+        except (asyncio.TimeoutError, Exception) as e:
+            print(f"⚠️ 외부 ML 서비스 실패 ({str(e)}), 폴백 분석 사용")
             ml_task.cancel()
             fallback_results = await fallback_task
+            print("✅ 폴백 분석 완료")
             return {**fallback_results, "service_status": "fallback"}
     
     async def _analyze_news_batch_local(self, news_items: List[NewsItem]) -> List[AnalyzedNewsItem]:
-        """로컬 ML 서비스로 뉴스 배치 분석"""
+        """로컬 ML 서비스로 뉴스 배치 분석 (배치 크기 제한)"""
         if not self.local_ml_service:
+            print("❌ 로컬 ML 서비스를 사용할 수 없음")
             return []
+        
+        # 배치 크기 제한 (메모리 문제 방지)
+        max_batch_size = 10
+        if len(news_items) > max_batch_size:
+            print(f"📦 대용량 배치 처리: {len(news_items)}개를 {max_batch_size}개씩 나누어 처리")
+            
+            analyzed_items = []
+            for i in range(0, len(news_items), max_batch_size):
+                batch = news_items[i:i + max_batch_size]
+                print(f"  📝 배치 {i//max_batch_size + 1} 처리 중: {len(batch)}개 아이템")
+                
+                batch_results = await self._process_single_batch_local(batch)
+                analyzed_items.extend(batch_results)
+                
+                print(f"  ✅ 배치 {i//max_batch_size + 1} 완료: {len(batch_results)}개 결과")
+            
+            return analyzed_items
+        else:
+            print(f"📝 소용량 배치 처리: {len(news_items)}개 아이템")
+            return await self._process_single_batch_local(news_items)
+    
+    async def _process_single_batch_local(self, news_items: List[NewsItem]) -> List[AnalyzedNewsItem]:
+        """단일 배치 처리"""
+        # ML 서비스 사용 가능성 재확인
+        if not self.local_ml_service or not self.local_ml_service.is_available():
+            print("❌ ML 서비스를 사용할 수 없음")
+            return []
+        
+        # 타입 체커를 위한 확실한 타입 가드
+        assert self.local_ml_service is not None
         
         # 뉴스 아이템을 딕셔너리 형태로 변환
         news_data = [self._news_item_to_dict(item) for item in news_items]
         
         # 로컬 ML 서비스로 분석
-        results = await self.local_ml_service.analyze_news_batch(news_data)
+        try:
+            print(f"🔄 ML 추론 서비스 호출: {len(news_data)}개 아이템")
+            results = await self.local_ml_service.analyze_news_batch(news_data)
+            print(f"✅ ML 추론 완료: {len(results)}개 결과")
+        except Exception as e:
+            print(f"❌ ML 추론 서비스 오류: {str(e)}")
+            raise
         
         # 결과를 AnalyzedNewsItem으로 변환
         analyzed_items = []
-        for result in results:
-            analyzed_item = self._convert_ml_result_to_analyzed_item(result, news_items)
-            if analyzed_item:
-                analyzed_items.append(analyzed_item)
+        for i, result in enumerate(results):
+            try:
+                analyzed_item = self._convert_ml_result_to_analyzed_item(result, news_items)
+                if analyzed_item:
+                    analyzed_items.append(analyzed_item)
+            except Exception as e:
+                print(f"⚠️ 결과 변환 실패 (아이템 {i+1}): {str(e)}")
         
         return analyzed_items
     

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .api.unified_router import main_router
+from .api.unified_router import main_router, legacy_router
 from .core.dependencies import setup_dependencies
 from .core.exceptions import (
     BaseServiceException, service_exception_handler,
@@ -14,9 +14,9 @@ logger = logging.getLogger(__name__)
 
 # FastAPI 앱 생성
 app = FastAPI(
-    title="뉴스 서비스 API v2.0",
-    description="스마트 검색 (캐시 우선) + 대시보드 모니터링 + 시스템 관리 - 통합 라우터",
-    version="2.0.0"
+    title="뉴스 서비스 API v3.0",
+    description="간단한 구조 + 스마트 캐시 + 대시보드 + 시스템 관리",
+    version="3.0.0"
 )
 
 # 글로벌 예외 핸들러 등록
@@ -28,34 +28,51 @@ app.add_exception_handler(Exception, generic_exception_handler)
 setup_dependencies()
 logger.info("의존성 주입 컨테이너 초기화 완료")
 
-# 통합 라우터 등록
-app.include_router(main_router, tags=["API v2.0"])
+# 라우터 등록
+app.include_router(main_router, tags=["Simple API"])        # 간단한 구조
+app.include_router(legacy_router, tags=["Legacy API v1"])   # 기존 호환성
 
 @app.get("/")
 async def root():
     return {
-        "message": "뉴스 서비스 API v2.0.0 - 통합 라우터 + 스마트 캐시",
+        "message": "뉴스 서비스 API v3.0.0 - 간단한 구조 + 스마트 캐시",
         "features": [
+            "🚀 간단한 API 구조 (Gateway 최적화)",
             "🔍 스마트 검색 (캐시 우선 → 실시간 폴백)",
             "📊 대시보드 모니터링 (백그라운드 데이터)",
             "🛠️ 시스템 관리 (헬스체크, 테스트)",
             "⚡ Redis 캐시 최적화",
             "🏗️ Clean Architecture + 의존성 주입"
         ],
-        "api_endpoints": {
-            "search": "/api/v1/search/*",
-            "dashboard": "/api/v1/dashboard/*", 
-            "system": "/api/v1/system/*",
-            "docs": "/docs"
-        }
+        "api_structures": {
+            "simple": {
+                "description": "Gateway 최적화된 간단한 구조",
+                "examples": [
+                    "/search",
+                    "/companies/{company}",
+                    "/dashboard/status",
+                    "/cache/info",
+                    "/system/health"
+                ]
+            },
+            "legacy": {
+                "description": "기존 호환성을 위한 구조",
+                "examples": [
+                    "/api/v1/search",
+                    "/api/v1/companies/{company}",
+                    "/api/v1/dashboard/status"
+                ]
+            }
+        },
+        "docs": "/docs"
     }
 
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy", 
-        "version": "2.0.0",
-        "architecture": "Clean Architecture with DI"
+        "version": "3.0.0",
+        "architecture": "Simple Structure + Clean Architecture with DI"
     }
 
 if __name__ == "__main__":
