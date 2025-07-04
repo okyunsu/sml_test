@@ -1,4 +1,4 @@
-"""분석 전략 패턴"""
+"""분석 전략 패턴 - 배치 처리 최적화"""
 import asyncio
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
@@ -9,7 +9,12 @@ class ESGAnalysisStrategy(ABC):
     
     @abstractmethod
     async def analyze(self, text: str) -> Dict[str, Any]:
-        """ESG 분석 수행"""
+        """단일 텍스트 ESG 분석"""
+        pass
+    
+    @abstractmethod
+    async def analyze_batch(self, texts: List[str]) -> List[Dict[str, Any]]:
+        """배치 텍스트 ESG 분석"""
         pass
 
 class SentimentAnalysisStrategy(ABC):
@@ -17,7 +22,12 @@ class SentimentAnalysisStrategy(ABC):
     
     @abstractmethod
     async def analyze(self, text: str) -> Dict[str, Any]:
-        """감정 분석 수행"""
+        """단일 텍스트 감정 분석"""
+        pass
+    
+    @abstractmethod
+    async def analyze_batch(self, texts: List[str]) -> List[Dict[str, Any]]:
+        """배치 텍스트 감정 분석"""
         pass
 
 class KeywordBasedESGStrategy(ESGAnalysisStrategy):
@@ -55,6 +65,17 @@ class KeywordBasedESGStrategy(ESGAnalysisStrategy):
             "keywords": matched_keywords,
             "method": "keyword_fallback"
         }
+    
+    async def analyze_batch(self, texts: List[str]) -> List[Dict[str, Any]]:
+        """배치 키워드 기반 ESG 분석"""
+        await asyncio.sleep(0)
+        
+        results = []
+        for text in texts:
+            result = await self.analyze(text)
+            results.append(result)
+        
+        return results
 
 class KeywordBasedSentimentStrategy(SentimentAnalysisStrategy):
     """키워드 기반 감정 분석"""
@@ -97,9 +118,20 @@ class KeywordBasedSentimentStrategy(SentimentAnalysisStrategy):
             "neutral": neutral_score,
             "method": "keyword_fallback"
         }
+    
+    async def analyze_batch(self, texts: List[str]) -> List[Dict[str, Any]]:
+        """배치 키워드 기반 감정 분석"""
+        await asyncio.sleep(0)
+        
+        results = []
+        for text in texts:
+            result = await self.analyze(text)
+            results.append(result)
+        
+        return results
 
 class MLBasedESGStrategy(ESGAnalysisStrategy):
-    """ML 모델 기반 ESG 분석"""
+    """ML 모델 기반 ESG 분석 - 배치 최적화"""
     
     def __init__(self, model, tokenizer, label_mapping, device, max_length=512):
         self.model = model
@@ -109,15 +141,23 @@ class MLBasedESGStrategy(ESGAnalysisStrategy):
         self.max_length = max_length
     
     async def analyze(self, text: str) -> Dict[str, Any]:
-        """ML 모델 기반 ESG 분석"""
+        """단일 텍스트 ML 기반 ESG 분석"""
+        batch_results = await self.analyze_batch([text])
+        return batch_results[0] if batch_results else self._get_default_result()
+    
+    async def analyze_batch(self, texts: List[str]) -> List[Dict[str, Any]]:
+        """배치 ML 기반 ESG 분석 - 핵심 최적화"""
         await asyncio.sleep(0)  # 비동기 처리를 위한 양보
         
+        if not texts:
+            return []
+        
         try:
-            import torch
+            import torch  # type: ignore
             
-            # 텍스트 전처리
+            # 🚀 배치 토크나이징 (한 번에 모든 텍스트 처리)
             inputs = self.tokenizer(
-                text,
+                texts,
                 truncation=True,
                 padding=True,
                 max_length=self.max_length,
@@ -125,35 +165,52 @@ class MLBasedESGStrategy(ESGAnalysisStrategy):
             )
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
-            # 예측 수행
-            with torch.no_grad():
+            # 🚀 배치 예측 (한 번에 모든 예측 수행)
+            with torch.no_grad():  # type: ignore
                 outputs = self.model(**inputs)
                 logits = outputs.logits
-                probabilities = torch.nn.functional.softmax(logits, dim=-1)
-                predicted_class = torch.argmax(probabilities, dim=-1).item()
-                confidence = probabilities[0][predicted_class].item()
+                probabilities = torch.nn.functional.softmax(logits, dim=-1)  # type: ignore
+                predicted_classes = torch.argmax(probabilities, dim=-1)  # type: ignore
+                confidences = torch.max(probabilities, dim=-1)[0]  # type: ignore
             
-            # 결과 매핑
-            predicted_label = self.label_mapping.get(str(predicted_class), "기타")
+            # 결과 변환
+            results = []
+            for i in range(len(texts)):
+                predicted_class = predicted_classes[i].item()
+                confidence = confidences[i].item()
+                predicted_label = self.label_mapping.get(str(predicted_class), "기타")
+                
+                # 모든 클래스의 확률 계산
+                class_probabilities = {}
+                for j, prob in enumerate(probabilities[i].tolist()):
+                    label = self.label_mapping.get(str(j), f"class_{j}")
+                    class_probabilities[label] = prob
+                
+                results.append({
+                    "category": predicted_label,
+                    "confidence": confidence,
+                    "probabilities": class_probabilities,
+                    "method": "fine_tuned_model_batch"
+                })
             
-            # 모든 클래스의 확률 계산
-            class_probabilities = {}
-            for i, prob in enumerate(probabilities[0].tolist()):
-                label = self.label_mapping.get(str(i), f"class_{i}")
-                class_probabilities[label] = prob
-            
-            return {
-                "category": predicted_label,
-                "confidence": confidence,
-                "probabilities": class_probabilities,
-                "method": "fine_tuned_model"
-            }
+            return results
             
         except Exception as e:
-            raise Exception(f"ML ESG 분석 실패: {str(e)}")
+            print(f"❌ ML ESG 배치 분석 실패: {str(e)}")
+            # 실패 시 기본 결과 반환
+            return [self._get_default_result() for _ in texts]
+    
+    def _get_default_result(self) -> Dict[str, Any]:
+        """기본 결과"""
+        return {
+            "category": "기타",
+            "confidence": 0.0,
+            "probabilities": {},
+            "method": "error_fallback"
+        }
 
 class MLBasedSentimentStrategy(SentimentAnalysisStrategy):
-    """ML 모델 기반 감정 분석"""
+    """ML 모델 기반 감정 분석 - 배치 최적화"""
     
     def __init__(self, model, tokenizer, label_mapping, device, max_length=512):
         self.model = model
@@ -163,15 +220,23 @@ class MLBasedSentimentStrategy(SentimentAnalysisStrategy):
         self.max_length = max_length
     
     async def analyze(self, text: str) -> Dict[str, Any]:
-        """ML 모델 기반 감정 분석"""
+        """단일 텍스트 ML 기반 감정 분석"""
+        batch_results = await self.analyze_batch([text])
+        return batch_results[0] if batch_results else self._get_default_result()
+    
+    async def analyze_batch(self, texts: List[str]) -> List[Dict[str, Any]]:
+        """배치 ML 기반 감정 분석 - 핵심 최적화"""
         await asyncio.sleep(0)  # 비동기 처리를 위한 양보
         
+        if not texts:
+            return []
+        
         try:
-            import torch
+            import torch  # type: ignore
             
-            # 텍스트 전처리
+            # 🚀 배치 토크나이징 (한 번에 모든 텍스트 처리)
             inputs = self.tokenizer(
-                text,
+                texts,
                 truncation=True,
                 padding=True,
                 max_length=self.max_length,
@@ -179,48 +244,110 @@ class MLBasedSentimentStrategy(SentimentAnalysisStrategy):
             )
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
-            # 예측 수행
-            with torch.no_grad():
+            # 🚀 배치 예측 (한 번에 모든 예측 수행)
+            with torch.no_grad():  # type: ignore
                 outputs = self.model(**inputs)
                 logits = outputs.logits
-                probabilities = torch.nn.functional.softmax(logits, dim=-1)
-                predicted_class = torch.argmax(probabilities, dim=-1).item()
-                confidence = probabilities[0][predicted_class].item()
+                probabilities = torch.nn.functional.softmax(logits, dim=-1)  # type: ignore
+                predicted_classes = torch.argmax(probabilities, dim=-1)  # type: ignore
+                confidences = torch.max(probabilities, dim=-1)[0]  # type: ignore
             
-            # 결과 매핑
-            predicted_label = self.label_mapping.get(str(predicted_class), "중립")
+            # 결과 변환
+            results = []
+            for i in range(len(texts)):
+                predicted_class = predicted_classes[i].item()
+                confidence = confidences[i].item()
+                predicted_label = self.label_mapping.get(str(predicted_class), "중립")
+                
+                # 모든 클래스의 확률 계산
+                class_probabilities = {}
+                for j, prob in enumerate(probabilities[i].tolist()):
+                    label = self.label_mapping.get(str(j), f"class_{j}")
+                    class_probabilities[label] = prob
+                
+                results.append({
+                    "sentiment": predicted_label,
+                    "confidence": confidence,
+                    "probabilities": class_probabilities,
+                    "method": "fine_tuned_model_batch"
+                })
             
-            # 모든 클래스의 확률 계산
-            class_probabilities = {}
-            for i, prob in enumerate(probabilities[0].tolist()):
-                label = self.label_mapping.get(str(i), f"class_{i}")
-                class_probabilities[label] = prob
-            
-            return {
-                "sentiment": predicted_label,
-                "confidence": confidence,
-                "probabilities": class_probabilities,
-                "method": "fine_tuned_model"
-            }
+            return results
             
         except Exception as e:
-            raise Exception(f"ML 감정 분석 실패: {str(e)}")
+            print(f"❌ ML 감정 배치 분석 실패: {str(e)}")
+            # 실패 시 기본 결과 반환
+            return [self._get_default_result() for _ in texts]
+    
+    def _get_default_result(self) -> Dict[str, Any]:
+        """기본 결과"""
+        return {
+            "sentiment": "중립",
+            "confidence": 0.0,
+            "probabilities": {},
+            "method": "error_fallback"
+        }
 
 class AnalysisContext:
-    """분석 컨텍스트"""
+    """분석 컨텍스트 - 배치 처리 최적화"""
     
     def __init__(self, esg_strategy: ESGAnalysisStrategy, sentiment_strategy: SentimentAnalysisStrategy):
         self.esg_strategy = esg_strategy
         self.sentiment_strategy = sentiment_strategy
     
     async def analyze_text(self, text: str) -> Dict[str, Any]:
-        """텍스트 분석"""
-        esg_task = asyncio.create_task(self.esg_strategy.analyze(text))
-        sentiment_task = asyncio.create_task(self.sentiment_strategy.analyze(text))
+        """단일 텍스트 분석"""
+        batch_results = await self.analyze_batch([text])
+        return batch_results[0] if batch_results else self._get_default_result()
+    
+    async def analyze_batch(self, texts: List[str]) -> List[Dict[str, Any]]:
+        """배치 텍스트 분석 - 🚀 핵심 최적화"""
+        if not texts:
+            return []
         
-        esg_result, sentiment_result = await asyncio.gather(esg_task, sentiment_task)
+        print(f"🚀 배치 분석 시작: {len(texts)}개 텍스트")
         
+        # ESG와 감정 분석을 병렬로 배치 처리
+        esg_task = asyncio.create_task(self.esg_strategy.analyze_batch(texts))
+        sentiment_task = asyncio.create_task(self.sentiment_strategy.analyze_batch(texts))
+        
+        esg_results, sentiment_results = await asyncio.gather(esg_task, sentiment_task)
+        
+        # 결과 결합
+        combined_results = []
+        for i in range(len(texts)):
+            esg_result = esg_results[i] if i < len(esg_results) else self._get_default_esg()
+            sentiment_result = sentiment_results[i] if i < len(sentiment_results) else self._get_default_sentiment()
+            
+            combined_results.append({
+                "esg": esg_result,
+                "sentiment": sentiment_result
+            })
+        
+        print(f"✅ 배치 분석 완료: {len(combined_results)}개 결과")
+        return combined_results
+    
+    def _get_default_result(self) -> Dict[str, Any]:
+        """기본 결과"""
         return {
-            "esg": esg_result,
-            "sentiment": sentiment_result
+            "esg": self._get_default_esg(),
+            "sentiment": self._get_default_sentiment()
+        }
+    
+    def _get_default_esg(self) -> Dict[str, Any]:
+        """기본 ESG 결과"""
+        return {
+            "category": "기타",
+            "confidence": 0.0,
+            "probabilities": {},
+            "method": "default"
+        }
+    
+    def _get_default_sentiment(self) -> Dict[str, Any]:
+        """기본 감정 결과"""
+        return {
+            "sentiment": "중립",
+            "confidence": 0.0,
+            "probabilities": {},
+            "method": "default"
         } 

@@ -136,29 +136,33 @@ class NewsAnalysisService:
             return {**fallback_results, "service_status": "fallback"}
     
     async def _analyze_news_batch_local(self, news_items: List[NewsItem]) -> List[AnalyzedNewsItem]:
-        """로컬 ML 서비스로 뉴스 배치 분석 (배치 크기 제한)"""
+        """로컬 ML 서비스로 뉴스 배치 분석 (성능 최적화)"""
         if not self.local_ml_service:
             print("❌ 로컬 ML 서비스를 사용할 수 없음")
             return []
         
-        # 배치 크기 제한 (메모리 문제 방지)
-        max_batch_size = 10
-        if len(news_items) > max_batch_size:
-            print(f"📦 대용량 배치 처리: {len(news_items)}개를 {max_batch_size}개씩 나누어 처리")
+        # 최적 배치 크기 (성능 개선을 위해 더 큰 배치 사용)
+        optimal_batch_size = 32  # 10 → 32로 증가 (GPU 활용도 극대화)
+        
+        if len(news_items) > optimal_batch_size:
+            print(f"📦 고성능 배치 처리: {len(news_items)}개를 {optimal_batch_size}개씩 나누어 처리")
             
             analyzed_items = []
-            for i in range(0, len(news_items), max_batch_size):
-                batch = news_items[i:i + max_batch_size]
-                print(f"  📝 배치 {i//max_batch_size + 1} 처리 중: {len(batch)}개 아이템")
+            for i in range(0, len(news_items), optimal_batch_size):
+                batch = news_items[i:i + optimal_batch_size]
+                batch_num = i // optimal_batch_size + 1
+                total_batches = (len(news_items) + optimal_batch_size - 1) // optimal_batch_size
+                
+                print(f"  🚀 배치 {batch_num}/{total_batches} 고속 처리: {len(batch)}개 아이템")
                 
                 batch_results = await self._process_single_batch_local(batch)
                 analyzed_items.extend(batch_results)
                 
-                print(f"  ✅ 배치 {i//max_batch_size + 1} 완료: {len(batch_results)}개 결과")
+                print(f"  ⚡ 배치 {batch_num}/{total_batches} 완료: {len(batch_results)}개 결과")
             
             return analyzed_items
         else:
-            print(f"📝 소용량 배치 처리: {len(news_items)}개 아이템")
+            print(f"🚀 단일 배치 고속 처리: {len(news_items)}개 아이템")
             return await self._process_single_batch_local(news_items)
     
     async def _process_single_batch_local(self, news_items: List[NewsItem]) -> List[AnalyzedNewsItem]:

@@ -245,33 +245,117 @@ class MLInferenceService:
             raise
     
     async def analyze_news_batch(self, news_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """뉴스 배치 분석 (타임아웃 적용)"""
-        logger.info(f"뉴스 배치 분석 시작: {len(news_items)}개 아이템")
-        results = []
+        """뉴스 배치 분석 (진짜 배치 처리로 성능 최적화)"""
+        logger.info(f"🚀 고성능 배치 분석 시작: {len(news_items)}개 아이템")
         
-        for i, item in enumerate(news_items):
-            try:
-                logger.info(f"뉴스 아이템 {i+1}/{len(news_items)} 분석 시작")
+        if not news_items:
+            return []
+        
+        # 최적 배치 크기 계산 (GPU 메모리 고려)
+        optimal_batch_size = min(32, len(news_items))  # 32개씩 처리로 성능 최적화
+        
+        if len(news_items) <= optimal_batch_size:
+            # 소량 데이터는 한 번에 처리
+            return await self._process_batch_optimized(news_items)
+        else:
+            # 대량 데이터는 최적 배치로 나누어 처리
+            logger.info(f"📦 대용량 최적화: {len(news_items)}개를 {optimal_batch_size}개씩 나누어 처리")
+            
+            all_results = []
+            for i in range(0, len(news_items), optimal_batch_size):
+                batch = news_items[i:i + optimal_batch_size]
+                batch_num = i // optimal_batch_size + 1
+                total_batches = (len(news_items) + optimal_batch_size - 1) // optimal_batch_size
                 
-                # 타임아웃을 적용하여 분석 수행
+                logger.info(f"  🔄 배치 {batch_num}/{total_batches} 처리 중: {len(batch)}개 아이템")
+                
+                try:
+                    batch_results = await asyncio.wait_for(
+                        self._process_batch_optimized(batch),
+                        timeout=self.analysis_timeout * 2  # 배치는 더 긴 타임아웃
+                    )
+                    all_results.extend(batch_results)
+                    logger.info(f"  ✅ 배치 {batch_num}/{total_batches} 완료: {len(batch_results)}개 결과")
+                    
+                except asyncio.TimeoutError:
+                    logger.error(f"  ⏰ 배치 {batch_num}/{total_batches} 타임아웃")
+                    # 타임아웃된 배치는 개별 처리로 폴백
+                    for item in batch:
+                        all_results.append(self._create_timeout_fallback_result(item))
+                except Exception as e:
+                    logger.error(f"  ❌ 배치 {batch_num}/{total_batches} 오류: {str(e)}")
+                    # 오류 발생한 배치는 개별 처리로 폴백
+                    for item in batch:
+                        all_results.append(self._create_error_fallback_result(item))
+            
+            logger.info(f"🎉 대용량 배치 분석 완료: {len(all_results)}개 결과")
+            return all_results
+    
+    async def _process_batch_optimized(self, batch_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """최적화된 배치 처리 - 핵심 성능 개선"""
+        if not batch_items or not self.analysis_context:
+            logger.warning("배치가 비어있거나 분석 컨텍스트가 없음")
+            return [self._create_default_result(item) for item in batch_items]
+        
+        # 타입 체커를 위한 확실한 타입 가드
+        assert self.analysis_context is not None
+        
+        try:
+            # 🚀 모든 텍스트를 한 번에 추출
+            texts = [self._combine_news_text(item) for item in batch_items]
+            
+            # 🚀 배치 분석 (ESG + 감정 동시 처리)
+            logger.info(f"🔄 배치 ML 분석 시작: {len(texts)}개 텍스트")
+            analysis_results = await self.analysis_context.analyze_batch(texts)
+            logger.info(f"✅ 배치 ML 분석 완료: {len(analysis_results)}개 결과")
+            
+            # 결과 결합
+            final_results = []
+            for i, item in enumerate(batch_items):
+                if i < len(analysis_results):
+                    analysis_result = analysis_results[i]
+                    final_results.append({
+                        **item,
+                        "esg_classification": {
+                            "category": analysis_result["esg"]["category"],
+                            "confidence": analysis_result["esg"]["confidence"],
+                            "probabilities": analysis_result["esg"].get("probabilities", {}),
+                            "classification_method": analysis_result["esg"]["method"]
+                        },
+                        "sentiment_analysis": {
+                            "sentiment": analysis_result["sentiment"]["sentiment"],
+                            "confidence": analysis_result["sentiment"]["confidence"],
+                            "probabilities": analysis_result["sentiment"].get("probabilities", {}),
+                            "classification_method": analysis_result["sentiment"]["method"]
+                        }
+                    })
+                else:
+                    final_results.append(self._create_default_result(item))
+            
+            return final_results
+            
+        except Exception as e:
+            logger.error(f"❌ 배치 처리 중 오류: {str(e)}")
+            # 오류 시 개별 처리로 폴백
+            return await self._fallback_individual_processing(batch_items)
+    
+    async def _fallback_individual_processing(self, batch_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """폴백: 개별 처리"""
+        logger.warning("🔄 배치 처리 실패, 개별 처리로 폴백")
+        
+        results = []
+        for i, item in enumerate(batch_items):
+            try:
+                logger.info(f"  개별 처리 {i+1}/{len(batch_items)}")
                 result = await asyncio.wait_for(
                     self._analyze_single_news_item(item),
                     timeout=self.analysis_timeout
                 )
                 results.append(result)
-                logger.info(f"뉴스 아이템 {i+1}/{len(news_items)} 분석 완료")
-                
-            except asyncio.TimeoutError:
-                logger.error(f"뉴스 아이템 {i+1}/{len(news_items)} 분석 타임아웃")
-                result = self._create_error_fallback_result(item)
-                results.append(result)
-                
             except Exception as e:
-                logger.error(f"뉴스 아이템 {i+1}/{len(news_items)} 분석 중 오류: {str(e)}")
-                result = self._create_error_fallback_result(item)
-                results.append(result)
+                logger.error(f"  개별 처리 {i+1} 실패: {str(e)}")
+                results.append(self._create_error_fallback_result(item))
         
-        logger.info(f"뉴스 배치 분석 완료: {len(results)}개 결과")
         return results
     
     async def _analyze_single_news_item(self, item: Dict[str, Any]) -> Dict[str, Any]:

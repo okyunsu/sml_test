@@ -1,7 +1,7 @@
 """ML 관련 설정 통합 관리"""
 import os
-from typing import Dict, Any
-from dataclasses import dataclass
+from typing import Dict, Any, Optional
+from dataclasses import dataclass, field
 from enum import Enum
 
 class ModelType(Enum):
@@ -20,18 +20,12 @@ class MLModelSettings:
     torch_dtype_cpu: str = "float32"
     
     # 기본 라벨 매핑
-    default_category_labels: Dict[str, str] = None
-    default_sentiment_labels: Dict[str, str] = None
-    
-    def __post_init__(self):
-        if self.default_category_labels is None:
-            self.default_category_labels = {
-                "0": "E", "1": "G", "2": "S", "3": "FIN", "4": "기타"
-            }
-        if self.default_sentiment_labels is None:
-            self.default_sentiment_labels = {
-                "0": "긍정", "1": "부정", "2": "중립"
-            }
+    default_category_labels: Dict[str, str] = field(default_factory=lambda: {
+        "0": "E", "1": "G", "2": "S", "3": "FIN", "4": "기타"
+    })
+    default_sentiment_labels: Dict[str, str] = field(default_factory=lambda: {
+        "0": "긍정", "1": "부정", "2": "중립"
+    })
     
     @classmethod
     def from_env(cls) -> "MLModelSettings":
@@ -53,10 +47,10 @@ class MLModelSettings:
 @dataclass
 class MLProcessingSettings:
     """ML 처리 관련 설정"""
-    batch_size: int = 20
+    batch_size: int = 32  # 20 → 32로 증가 (GPU 활용도 극대화)
     similarity_threshold: float = 0.75
-    chunk_size: int = 50
-    max_text_length: int = 200
+    chunk_size: int = 100  # 50 → 100으로 증가 (처리량 증가)
+    max_text_length: int = 300  # 200 → 300으로 증가 (더 많은 정보 처리)
     
     # 모델 로딩 옵션
     local_files_only: bool = True
@@ -65,14 +59,22 @@ class MLProcessingSettings:
     force_download: bool = False
     resume_download: bool = False
     
+    # 성능 최적화 옵션
+    use_compiled_model: bool = True  # 모델 컴파일 사용
+    use_half_precision: bool = True  # half precision 사용 (GPU 메모리 절약)
+    optimize_for_inference: bool = True  # 추론 최적화
+    
     @classmethod
     def from_env(cls) -> "MLProcessingSettings":
         """환경변수에서 처리 설정 생성"""
         return cls(
-            batch_size=int(os.environ.get("ML_BATCH_SIZE", "20")),
+            batch_size=int(os.environ.get("ML_BATCH_SIZE", "32")),
             similarity_threshold=float(os.environ.get("SIMILARITY_THRESHOLD", "0.75")),
-            chunk_size=int(os.environ.get("CHUNK_SIZE", "50")),
-            max_text_length=int(os.environ.get("MAX_TEXT_LENGTH", "200"))
+            chunk_size=int(os.environ.get("CHUNK_SIZE", "100")),
+            max_text_length=int(os.environ.get("MAX_TEXT_LENGTH", "300")),
+            use_compiled_model=os.environ.get("USE_COMPILED_MODEL", "true").lower() == "true",
+            use_half_precision=os.environ.get("USE_HALF_PRECISION", "true").lower() == "true",
+            optimize_for_inference=os.environ.get("OPTIMIZE_FOR_INFERENCE", "true").lower() == "true"
         )
     
     def get_model_load_options(self, device_type: str) -> Dict[str, Any]:
@@ -85,47 +87,47 @@ class MLProcessingSettings:
             "resume_download": self.resume_download,
         }
         
-        # torch_dtype 설정
-        if device_type == "cuda":
+        # torch_dtype 설정 (성능 최적화)
+        if device_type == "cuda" and self.use_half_precision:
             try:
-                import torch
-                options["torch_dtype"] = torch.float16
+                import torch  # type: ignore
+                options["torch_dtype"] = torch.float16  # type: ignore
             except ImportError:
                 pass
         else:
             try:
-                import torch
-                options["torch_dtype"] = torch.float32
+                import torch  # type: ignore
+                options["torch_dtype"] = torch.float32  # type: ignore
             except ImportError:
                 pass
         
         # accelerate 패키지가 있는 경우에만 low_cpu_mem_usage 사용
         try:
-            import accelerate
+            import accelerate  # type: ignore
             options["low_cpu_mem_usage"] = True
         except ImportError:
             pass
+        
+        # 추론 최적화
+        if self.optimize_for_inference:
+            options["use_cache"] = True
             
         return options
 
 @dataclass
 class DashboardSettings:
     """대시보드 관련 설정"""
-    monitored_companies: list[str] = None
+    monitored_companies: list[str] = field(default_factory=lambda: ["삼성전자", "LG전자"])
     analysis_interval_minutes: int = 30
     cache_expire_hours: int = 24
     history_max_count: int = 50
     history_expire_days: int = 7
     
-    def __post_init__(self):
-        if self.monitored_companies is None:
-            self.monitored_companies = ["삼성전자", "LG전자"]
-    
     @classmethod
     def from_env(cls) -> "DashboardSettings":
         """환경변수에서 대시보드 설정 생성"""
         companies_env = os.environ.get("MONITORED_COMPANIES")
-        companies = companies_env.split(",") if companies_env else None
+        companies = companies_env.split(",") if companies_env else ["삼성전자", "LG전자"]
         
         return cls(
             monitored_companies=companies,
