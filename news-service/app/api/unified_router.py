@@ -8,8 +8,10 @@ from app.domain.controller.dashboard_controller import DashboardController
 from app.domain.model.news_dto import (
     NewsSearchRequest, NewsSearchResponse, NewsAnalysisResponse, SimpleCompanySearchRequest
 )
-from app.core.dependencies import get_dependency, DependencyContainer
+from app.core.dependencies import get_dependency, DependencyContainer, get_settings
+from app.config.settings import Settings
 import logging
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +158,62 @@ async def analyze_company_news(
     except Exception as e:
         logger.error(f"회사 뉴스 분석 실패: {str(e)}")
         raise HTTPException(status_code=500, detail=f"회사 뉴스 분석 중 오류: {str(e)}")
+
+
+async def send_to_n8n(webhook_url: str, data: dict):
+    """n8n 웹훅으로 비동기 POST 요청을 보냅니다."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(webhook_url, json=data, timeout=10.0)
+            response.raise_for_status()  # 2xx 외의 응답 코드는 예외 발생
+        logger.info(f"n8n 웹훅 호출 성공: {response.status_code}, 응답: {response.text}")
+    except httpx.RequestError as e:
+        logger.error(f"n8n 웹훅 연결 실패: {e.request.method} {e.request.url} - {str(e)}")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"n8n 웹훅 응답 오류: {e.response.status_code} - {e.response.text}")
+
+
+@frontend_router.post(
+    "/companies/{company}/export",
+    status_code=202,
+    summary="회사 뉴스 분석 결과 엑셀(Google Sheets)로 내보내기",
+    description="분석된 데이터를 n8n을 통해 Google Sheets로 전송합니다."
+)
+async def export_company_news_to_sheet(
+    background_tasks: BackgroundTasks,
+    company: str = Path(..., description="회사명"),
+    news_controller: NewsController = Depends(get_news_controller),
+    settings: Settings = Depends(get_settings)
+):
+    """회사 뉴스 분석 결과를 n8n 웹훅으로 전송"""
+    if not settings.n8n_export_webhook_url:
+        logger.error("N8N_EXPORT_WEBHOOK_URL이 설정되지 않았습니다.")
+        raise HTTPException(
+            status_code=501,
+            detail="서버에 내보내기 기능이 설정되지 않았거나 비활성화되었습니다."
+        )
+
+    try:
+        # 1. 기존 분석 로직을 호출하여 데이터 생성
+        logger.info(f"'{company}' 분석 데이터 생성 중 for export...")
+        request = SimpleCompanySearchRequest(company=company)
+        optimized_request = request.to_optimized_news_search_request()
+        analysis_result = await news_controller.analyze_company_news(optimized_request)
+
+        # 2. n8n 웹훅 호출 (백그라운드에서 실행하여 응답을 빠르게)
+        logger.info(f"n8n 웹훅으로 데이터 전송 요청: {settings.n8n_export_webhook_url}")
+        background_tasks.add_task(
+            send_to_n8n,
+            settings.n8n_export_webhook_url,
+            analysis_result.dict()
+        )
+
+        return {"status": "accepted", "message": f"'{company}' 데이터의 Google Sheets 내보내기 요청이 접수되었습니다."}
+
+    except Exception as e:
+        logger.error(f"회사 뉴스 내보내기 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"데이터 내보내기 중 오류 발생: {str(e)}")
+
 
 @frontend_router.get(
     "/health",

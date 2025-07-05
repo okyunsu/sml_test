@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 from enum import Enum
 
+
 class ModelType(Enum):
     """모델 타입"""
     CATEGORY = "category"

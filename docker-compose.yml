@@ -192,8 +192,24 @@ services:
     networks:
       - news-service-network
 
+  n8n:
+    image: n8nio/n8n
+    container_name: news-n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      # Docker 외부(로컬 PC)에서 n8n UI 및 웹훅 테스트를 위해 사용되는 주소
+      - WEBHOOK_URL=http://localhost:5678/
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - news-service-network
+
 volumes:
   redis_data:
+    driver: local
+  n8n_data:
     driver: local
 
 networks:

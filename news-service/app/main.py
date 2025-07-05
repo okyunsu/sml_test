@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from .api.unified_router import main_router, legacy_router
 from .core.dependencies import setup_dependencies
 from .core.exceptions import (
@@ -17,6 +18,15 @@ app = FastAPI(
     title="뉴스 서비스 API v3.0",
     description="간단한 구조 + 스마트 캐시 + 대시보드 + 시스템 관리",
     version="3.0.0"
+)
+
+# CORS 미들웨어 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 출처 허용
+    allow_credentials=True,
+    allow_methods=["*"],  # 모든 HTTP 메소드 허용
+    allow_headers=["*"],  # 모든 헤더 허용
 )
 
 # 글로벌 예외 핸들러 등록

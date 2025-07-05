@@ -24,3 +24,7 @@ celery[redis]>=5.3.0
 # tokenizers>=0.15.0  # transformers에 포함됨
 # torch-audio  # 불필요
 # scipy  # 불필요 
+uvicorn
+celery
+flower
+httpx 

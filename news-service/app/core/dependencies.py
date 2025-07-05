@@ -2,6 +2,7 @@
 from typing import Optional, Dict, Any, Type, TypeVar
 from abc import ABC, abstractmethod
 import logging
+from app.config.settings import settings, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -106,4 +107,8 @@ def setup_dependencies():
 
 def get_dependency() -> DependencyContainer:
     """의존성 컨테이너 반환"""
-    return container 
+    return container
+
+def get_settings() -> Settings:
+    """설정 객체 반환 (FastAPI Depends 용)"""
+    return settings 

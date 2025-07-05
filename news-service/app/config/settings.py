@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     redis_port: int = int(os.getenv("REDIS_PORT", "6379"))
     redis_db: int = int(os.getenv("REDIS_DB", "0"))
     
+    # n8n 웹훅 URL 설정 (Docker 내부 통신용)
+    n8n_export_webhook_url: Optional[str] = os.getenv("N8N_EXPORT_WEBHOOK_URL", None)
+    
     model_config = {
         "env_file": ".env",
         "case_sensitive": False,
