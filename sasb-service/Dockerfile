@@ -1,0 +1,57 @@
+# Stage 1: Build stage
+FROM python:3.11-slim as builder
+
+# Build 환경 최적화
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Build dependencies 설치 (최소한으로)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# requirements.txt 복사 및 의존성 설치
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# Stage 2: Runtime stage (최소 이미지)
+FROM python:3.11-slim
+
+# 런타임 환경 최적화
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PATH=/home/appuser/.local/bin:$PATH
+
+WORKDIR /app
+
+# 런타임에 필요한 최소한의 패키지만 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# 비root 사용자 생성
+RUN useradd --create-home --shell /bin/bash appuser
+USER appuser
+WORKDIR /home/appuser/app
+
+# Build stage에서 설치된 Python 패키지들만 복사
+COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
+
+# 애플리케이션 코드만 복사 (data 폴더 제외 - 필요시에만)
+COPY --chown=appuser:appuser ./app ./app
+
+# 포트 노출
+EXPOSE 8003
+
+# 헬스체크 (더 효율적으로)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8003/health || exit 1
+
+# 애플리케이션 실행
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"] 

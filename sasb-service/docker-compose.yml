@@ -1,0 +1,129 @@
+services:
+  sasb-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - PORT=${PORT:-8003}
+      - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
+      - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
+      - MODEL_NAME=${MODEL_NAME}
+      - MODEL_BASE_PATH=/app/models
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - DISABLE_ML_MODEL=true  # 메인 웹서버에서는 ML 모델 비활성화
+      # CPU 최적화 환경변수
+      - OMP_NUM_THREADS=2
+      - TOKENIZERS_PARALLELISM=false
+    ports:
+      - "${PORT:-8003}:8003"
+    volumes:
+      - C:\\Users\\bitcamp\\Documents\\321\\newstun-service\\models:/app/models:ro
+    networks:
+      - sasb_network
+    depends_on:
+      - redis_sasb
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # 메모리 및 CPU 제한 설정 (ML 모델용) - 메모리 증가
+    deploy:
+      resources:
+        limits:
+          memory: 3G  # 2GB → 3GB로 증가
+          cpus: '2.0'  # CPU 2코어로 제한
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.workers.celery_app worker -l info --concurrency=1
+    environment:
+      - PORT=${PORT:-8003}
+      - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
+      - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
+      - MODEL_NAME=${MODEL_NAME}  # .env 파일의 test222 사용
+      - MODEL_BASE_PATH=/app/models
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - DISABLE_ML_MODEL=false  # worker에서는 ML 모델 활성화 (이미 잘 작동 중)
+      # CPU 최적화 환경변수
+      - OMP_NUM_THREADS=1
+      - TOKENIZERS_PARALLELISM=false
+    volumes:
+      - C:\\Users\\bitcamp\\Documents\\321\\newstun-service\\models:/app/models:ro
+    networks:
+      - sasb_network
+    depends_on:
+      - redis_sasb
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Worker 메모리 및 CPU 제한 (ML 모델 포함, concurrency=1)
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: '1.5'  # CPU 1.5코어로 제한
+        reservations:
+          memory: 2G
+          cpus: '0.5'
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app.workers.celery_app beat -l info
+    env_file: ./.env
+    environment:
+      - PORT=${PORT:-8003}
+      - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
+      - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
+      - MODEL_NAME=${MODEL_NAME}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - DISABLE_ML_MODEL=true  # Beat에서는 ML 모델 로딩 비활성화
+    volumes:
+      - C:\\Users\\bitcamp\\Documents\\321\\newstun-service\\models:/app/models:ro
+    networks:
+      - sasb_network
+    depends_on:
+      - redis_sasb
+      - sasb-service
+    # Beat 메모리 및 CPU 제한 (스케줄러만)
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'  # CPU 0.2코어로 제한
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  redis_sasb:
+    image: redis:7-alpine
+    container_name: redis_sasb
+    ports:
+      - "6380:6379" # Expose Redis on host port 6380 to avoid conflicts
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_sasb_data:/data
+    networks:
+      - sasb_network
+    restart: unless-stopped
+
+volumes:
+  redis_sasb_data:
+
+networks:
+  sasb_network:
+    driver: bridge 
