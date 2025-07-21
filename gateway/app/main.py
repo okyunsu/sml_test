@@ -1,22 +1,24 @@
 import json
 from typing import Optional
-from fastapi import APIRouter, FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 import os
 import logging
 import sys
 from dotenv import load_dotenv
-from app.domain.model.service_proxy_factory import ServiceProxyFactory
 from contextlib import asynccontextmanager
+
+# ✅ Python Path 설정 (shared 모듈 접근용)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+
+# ✅ 공통 모듈 사용
+from shared.core.app_factory import create_fastapi_app
+from shared.core.exception_handlers import DEFAULT_EXCEPTION_HANDLERS
+
+from app.domain.model.service_proxy_factory import ServiceProxyFactory
 from app.domain.model.service_type import ServiceType
 
-# ✅로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
+# ✅로깅 설정 (공통 모듈에서 처리)
 logger = logging.getLogger("gateway_api")
 
 # ✅ .env 파일 로드
@@ -24,27 +26,21 @@ load_dotenv()
 
 # ✅ 애플리케이션 시작 시 실행
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app):
     logger.info("🚀 News Gateway API 서비스 시작 (Dynamic Proxy) - News & SASB 연결")
     yield
     logger.info("🛑 News Gateway API 서비스 종료")
 
-# ✅ FastAPI 앱 생성 
-app = FastAPI(
+# ✅ FastAPI 앱 생성 (공통 팩토리 사용)
+app = create_fastapi_app(
     title="News Gateway API - Dynamic Proxy",
     description="동적 프록시 기반 Gateway API",
     version="3.0.0-dynamic",
-    lifespan=lifespan
+    exception_handlers=DEFAULT_EXCEPTION_HANDLERS
 )
 
-# ✅ CORS 설정
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 라이프사이클 설정
+app.router.lifespan_context = lifespan
 
 # ✅ 메인 라우터 생성
 gateway_router = APIRouter(prefix="/gateway/v1", tags=["Dynamic Proxy Gateway"])

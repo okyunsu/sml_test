@@ -2,6 +2,14 @@
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Path, Query
 from datetime import datetime
+import os
+import sys
+
+# ✅ Python Path 설정 (shared 모듈 접근용)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
+
+# ✅ 공통 감정 변환 모듈 사용
+from shared.services.sentiment_helper import SentimentConverter
 
 from app.domain.controller.sasb_controller import SASBController
 from app.domain.controller.dashboard_controller import DashboardController
@@ -14,42 +22,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# 🔄 Sentiment 변환 헬퍼 함수
-def convert_sentiment_label(raw_sentiment: str) -> str:
-    """
-    LABEL_0, LABEL_1, LABEL_2를 사람이 읽기 쉬운 형태로 변환
-    기존 캐시된 데이터와 새로운 분석 결과 모두에 적용
-    
-    일반적인 3-class sentiment 분류:
-    - LABEL_0 / 0 = 부정 (negative)
-    - LABEL_1 / 1 = 긍정 (positive) 
-    - LABEL_2 / 2 = 중립 (neutral)
-    """
-    if not raw_sentiment:
-        return "중립"
-        
-    label = str(raw_sentiment).upper().strip()
-    
-    # LABEL_X 형태 처리 (label_encoder.json 기준)
-    if label == "LABEL_0" or label == "0":
-        return "긍정"  # label_encoder.json: "0": "긍정"
-    elif label == "LABEL_1" or label == "1":
-        return "부정"  # label_encoder.json: "1": "부정"
-    elif label == "LABEL_2" or label == "2":
-        return "중립"  # label_encoder.json: "2": "중립"
-    
-    # 이미 변환된 형태인지 확인
-    elif label in ["부정", "NEGATIVE", "NEG"]:
-        return "부정"
-    elif label in ["긍정", "POSITIVE", "POS"]:
-        return "긍정"
-    elif label in ["중립", "NEUTRAL", "NEU"]:
-        return "중립"
-    
-    # 알 수 없는 라벨의 경우 중립으로 처리
-    else:
-        logger.warning(f"알 수 없는 sentiment 라벨: '{raw_sentiment}' → 중립으로 처리")
-        return "중립"
+# ✅ 공통 모듈 사용 (기존 함수 제거)
+convert_sentiment_label = SentimentConverter.convert_sentiment_label
 
 def convert_articles_sentiment(articles: List[dict]) -> List[dict]:
     """기사 리스트의 sentiment를 모두 변환"""

@@ -1,11 +1,17 @@
 import json
 from typing import Optional, Dict, Any
 from datetime import datetime
-from urllib.parse import urlparse
-
-from app.core.redis_client import RedisClient
-from app.config.settings import settings
 import logging
+import os
+import sys
+
+# ✅ Python Path 설정 (shared 모듈 접근용)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))))
+
+# ✅ 공통 Redis 팩토리 사용
+from shared.core.redis_factory import RedisClientFactory
+
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +21,10 @@ class DashboardController:
     def __init__(self):
         self.redis_client = self._get_redis_client()
     
-    def _get_redis_client(self) -> RedisClient:
-        """Redis 클라이언트 생성"""
+    def _get_redis_client(self):
+        """Redis 클라이언트 생성 (공통 팩토리 사용)"""
         try:
-            parsed_url = urlparse(settings.CELERY_BROKER_URL)
-            return RedisClient(
-                host=parsed_url.hostname or 'localhost',
-                port=parsed_url.port or 6379,
-                db=int(parsed_url.path[1:]) if parsed_url.path and parsed_url.path[1:] else 0
-            )
+            return RedisClientFactory.create_from_url(settings.CELERY_BROKER_URL)
         except Exception as e:
             logger.error(f"Redis 클라이언트 생성 실패: {e}")
             raise

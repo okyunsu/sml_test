@@ -1,5 +1,12 @@
 from typing import Dict, Any
-from urllib.parse import urlparse
+import os
+import sys
+
+# ✅ Python Path 설정 (shared 모듈 접근용)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
+
+# ✅ 공통 Redis 팩토리 사용
+from shared.core.redis_factory import RedisClientFactory
 
 from ..domain.service.sasb_service import SASBService
 from ..domain.service.analysis_service import AnalysisService
@@ -7,7 +14,6 @@ from ..domain.service.naver_news_service import NaverNewsService
 from ..domain.service.ml_inference_service import MLInferenceService
 from ..domain.controller.sasb_controller import SASBController
 from ..domain.controller.dashboard_controller import DashboardController
-from .redis_client import RedisClient
 from ..config.settings import settings
 
 class DependencyContainer:
@@ -19,13 +25,8 @@ class DependencyContainer:
     
     def _initialize_services(self):
         """서비스 초기화 - 의존성 순서에 따라 초기화"""
-        # 1. 인프라 계층 (가장 기본)
-        parsed_url = urlparse(settings.CELERY_BROKER_URL)
-        redis_client = RedisClient(
-            host=parsed_url.hostname or 'localhost',
-            port=parsed_url.port or 6379,
-            db=int(parsed_url.path[1:]) if parsed_url.path and parsed_url.path[1:] else 0
-        )
+        # 1. 인프라 계층 (가장 기본) - 공통 Redis 팩토리 사용
+        redis_client = RedisClientFactory.create_from_url(settings.CELERY_BROKER_URL)
         
         # 2. 기본 서비스 계층 (의존성 없음)
         naver_news_service = NaverNewsService()
@@ -73,6 +74,6 @@ def get_analysis_service() -> AnalysisService:
     """AnalysisService 반환"""
     return container.get("analysis_service")
 
-def get_redis_client() -> RedisClient:
-    """RedisClient 반환"""
+def get_redis_client():
+    """Redis 클라이언트 반환"""
     return container.get("redis_client") 

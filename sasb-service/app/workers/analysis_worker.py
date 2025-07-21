@@ -81,15 +81,18 @@ RENEWABLE_KEYWORDS = SASB_ISSUE_KEYWORDS
 COMPANIES = ["두산퓨얼셀", "LS ELECTRIC"]
 MAX_ARTICLES_IN_CACHE = 100
 
+# ✅ Python Path 설정 (shared 모듈 접근용)
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
+
+# ✅ 공통 Redis 팩토리 사용
+from shared.core.redis_factory import RedisClientFactory
+
 # --- Helper Functions ---
 def get_redis_client():
-    """Helper function to create a Redis client from settings."""
-    parsed_url = urlparse(settings.CELERY_BROKER_URL)
-    return RedisClient(
-        host=parsed_url.hostname or 'localhost',
-        port=parsed_url.port or 6379,
-        db=int(parsed_url.path[1:]) if parsed_url.path and parsed_url.path[1:] else 0
-    )
+    """Redis 클라이언트 생성 (공통 팩토리 사용)"""
+    return RedisClientFactory.create_from_url(settings.CELERY_BROKER_URL)
 
 async def async_analyze_and_cache_news(analysis_service: AnalysisService, keywords: List[str], company_name: Optional[str] = None):
     """비동기 뉴스 분석 래퍼 함수 (기존 방식)"""

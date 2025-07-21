@@ -24,51 +24,7 @@ services:
     networks:
       - news-service-network
 
-  # News Service (메인 API 서버) - 비활성화
-  # news-service:
-  #   build:
-  #     context: ./news-service
-  #     dockerfile: Dockerfile.cpu
-  #   container_name: news-service-api
-  #   ports:
-  #     - "8002:8002"
-  #   volumes:
-  #     - ./newstun-service/models:/app/models:ro
-  #   env_file:
-  #     - ./news-service/.env
-  #   environment:
-  #     - PYTHONPATH=/app
-  #     - REDIS_URL=redis://redis:6379/0
-  #     - REDIS_HOST=redis
-  #     - REDIS_PORT=6379
-  #     - REDIS_DB=0
-  #     # HuggingFace 완전 오프라인 모드
-  #     - HF_HUB_OFFLINE=1
-  #     - TRANSFORMERS_OFFLINE=1
-  #     - HF_DATASETS_OFFLINE=1
-  #     # CPU 최적화 환경변수
-  #     - OMP_NUM_THREADS=2
-  #     - TOKENIZERS_PARALLELISM=false
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   restart: unless-stopped
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 2G
-  #         cpus: '1.5'
-  #       reservations:
-  #         memory: 512M
-  #         cpus: '0.25'
-  #   networks:
-  #     - news-service-network
+
 
   # SASB Service (SASB 분석 서비스)
   sasb-service:
@@ -98,6 +54,9 @@ services:
       # CPU 최적화
       - OMP_NUM_THREADS=2
       - TOKENIZERS_PARALLELISM=false
+    volumes:
+      # ✅ 공통 모듈 마운트
+      - ./shared:/app/shared:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -142,6 +101,9 @@ services:
       # CPU 최적화
       - OMP_NUM_THREADS=2
       - TOKENIZERS_PARALLELISM=false
+    volumes:
+      # ✅ 공통 모듈 마운트
+      - ./shared:/app/shared:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -178,9 +140,11 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
-      - NEWS_SERVICE_URL=http://news-service:8002
       - SASB_SERVICE_URL=http://sasb-service:8003
       - MATERIAL_SERVICE_URL=http://material-service:8004
+    volumes:
+      # ✅ 공통 모듈 마운트
+      - ./shared:/app/shared:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/gateway/v1/health')"]
       interval: 30s
@@ -211,90 +175,9 @@ services:
     networks:
       - news-service-network
 
-  # Celery Worker (백그라운드 뉴스 분석) - 비활성화
-  # celery-worker:
-  #   build:
-  #     context: ./news-service
-  #     dockerfile: Dockerfile.cpu
-  #   container_name: news-celery-worker
-  #   command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=1
-  #   volumes:
-  #     - ./newstun-service/models:/app/models:ro
-  #   env_file:
-  #     - ./news-service/.env
-  #   environment:
-  #     - PYTHONPATH=/app
-  #     - REDIS_URL=redis://redis:6379/0
-  #     - REDIS_HOST=redis
-  #     - REDIS_PORT=6379
-  #     - REDIS_DB=0
-  #     - C_FORCE_ROOT=1  # Celery root 실행 허용
-  #     # HuggingFace 완전 오프라인 모드
-  #     - HF_HUB_OFFLINE=1
-  #     - TRANSFORMERS_OFFLINE=1
-  #     - HF_DATASETS_OFFLINE=1
-  #     # CPU 최적화
-  #     - OMP_NUM_THREADS=1
-  #     - TOKENIZERS_PARALLELISM=false
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   restart: unless-stopped
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 2G
-  #         cpus: '1.0'
-  #       reservations:
-  #         memory: 512M
-  #         cpus: '0.25'
-  #   logging:
-  #     driver: "json-file"
-  #     options:
-  #       max-size: "10m"
-  #       max-file: "3"
-  #   networks:
-  #     - news-service-network
 
-  # Celery Beat (스케줄러 - 30분마다 삼성전자, LG전자 분석) - 비활성화
-  # celery-beat:
-  #   build:
-  #     context: ./news-service
-  #     dockerfile: Dockerfile.cpu
-  #   container_name: news-celery-beat
-  #   command: celery -A app.workers.celery_app beat --loglevel=info
-  #   env_file:
-  #     - ./news-service/.env
-  #   environment:
-  #     - PYTHONPATH=/app
-  #     - REDIS_URL=redis://redis:6379/0
-  #     - REDIS_HOST=redis
-  #     - REDIS_PORT=6379
-  #     - REDIS_DB=0
-  #     - C_FORCE_ROOT=1
-  #     # HuggingFace 완전 오프라인 모드
-  #     - HF_HUB_OFFLINE=1
-  #     - TRANSFORMERS_OFFLINE=1
-  #     - HF_DATASETS_OFFLINE=1
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   restart: unless-stopped
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 512M
-  #         cpus: '0.5'
-  #       reservations:
-  #         memory: 128M
-  #         cpus: '0.1'
-  #   logging:
-  #     driver: "json-file"
-  #     options:
-  #       max-size: "10m"
-  #       max-file: "3"
-  #   networks:
-  #     - news-service-network
+
+
 
   # SASB Celery Worker (백그라운드 SASB 분석)
   sasb-celery-worker:
@@ -306,6 +189,8 @@ services:
     volumes:
       # 🎯 ML 모델 마운트 (worker에서 감성분석 수행)
       - ./newstun-service/models:/app/models:ro
+      # ✅ 공통 모듈 마운트
+      - ./shared:/app/shared:ro
     env_file:
       - ./sasb-service/.env
     environment:
@@ -359,6 +244,9 @@ services:
       dockerfile: Dockerfile
     container_name: sasb-celery-beat
     command: celery -A app.workers.celery_app beat --loglevel=info
+    volumes:
+      # ✅ 공통 모듈 마운트
+      - ./shared:/app/shared:ro
     env_file:
       - ./sasb-service/.env
     environment:
@@ -398,24 +286,10 @@ services:
     networks:
       - news-service-network
 
-  n8n:
-    image: n8nio/n8n
-    container_name: news-n8n
-    restart: always
-    ports:
-      - "5678:5678"
-    environment:
-      # Docker 외부(로컬 PC)에서 n8n UI 및 웹훅 테스트를 위해 사용되는 주소
-      - WEBHOOK_URL=http://localhost:5678/
-    volumes:
-      - n8n_data:/home/node/.n8n
-    networks:
-      - news-service-network
+
 
 volumes:
   redis_data:
-    driver: local
-  n8n_data:
     driver: local
 
 networks:

@@ -1,8 +1,19 @@
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 import logging
+import os
+import sys
 from collections import defaultdict
 import math
+
+# ✅ Python Path 설정 (shared 모듈 접근용)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))))
+
+# ✅ 공통 분석 헬퍼 사용
+from shared.services.analysis_helper import (
+    MaterialityAnalysisHelper, AnalysisErrorHandler, 
+    ActionItemGenerator, ConfidenceAssessment
+)
 
 from ..model.materiality_dto import MaterialityTopic, MaterialityAssessment
 from .news_analysis_engine import NewsAnalysisEngine
@@ -135,27 +146,78 @@ class MaterialityAnalysisService:
                 self.logger.error(f"❌ 신규 이슈 제안 실패: {str(e)}")
                 new_issue_suggestions = []
         
-            # 6. 종합 분석 결과 구성
-            try:
-                self.logger.info("🔧 종합 분석 결과 구성 시작")
-                
-                # 안전한 데이터 접근을 위한 추가 검증
-                if not isinstance(evolution_analysis, dict):
-                    raise ValueError(f"evolution_analysis가 딕셔너리가 아님: {type(evolution_analysis)}")
-                
-                if 'topic_changes' not in evolution_analysis:
-                    self.logger.error("❌ evolution_analysis에 topic_changes 키가 없음")
-                    evolution_analysis['topic_changes'] = []
-                
-                if 'new_issues' not in evolution_analysis:
-                    self.logger.error("❌ evolution_analysis에 new_issues 키가 없음")
-                    evolution_analysis['new_issues'] = []
-                
-                if 'overall_trend' not in evolution_analysis:
-                    self.logger.error("❌ evolution_analysis에 overall_trend 키가 없음")
-                    evolution_analysis['overall_trend'] = {'overall_direction': 'stable', 'update_necessity': 'low', 'avg_confidence': 0.5}
-                
-                # 6-1. 기본 메타데이터
+            # 6. 종합 분석 결과 구성 (공통 헬퍼 사용으로 간소화)
+            analysis_result = self._build_comprehensive_analysis_result(
+                evolution_analysis, recommendations, priority_suggestions, 
+                new_issue_suggestions, company_name, current_year
+            )
+            
+            self.logger.info(f"✅ {company_name} 중대성 평가 변화 분석 완료")
+            return analysis_result
+
+        except Exception as e:
+            # 에러 처리 (공통 헬퍼 사용)
+            return AnalysisErrorHandler.create_error_response(
+                company_name, current_year, e, "중대성 평가 변화 분석"
+            )
+    
+    def _build_comprehensive_analysis_result(
+        self,
+        evolution_analysis: Dict[str, Any],
+        recommendations: List[Dict[str, Any]],
+        priority_suggestions: List[Dict[str, Any]],
+        new_issue_suggestions: List[Dict[str, Any]],
+        company_name: str,
+        current_year: int
+    ) -> Dict[str, Any]:
+        """종합 분석 결과 구성 (분리된 메서드)"""
+        try:
+            self.logger.info("🔧 종합 분석 결과 구성 시작")
+            
+                        # 2. 공통 헬퍼로 메타데이터 생성 
+            analysis_metadata = MaterialityAnalysisHelper.create_analysis_metadata(
+                company_name, current_year, 2024
+            )
+            
+            # 3. 공통 헬퍼로 뉴스 분석 요약 생성
+            news_analysis_summary = MaterialityAnalysisHelper.create_news_analysis_summary(evolution_analysis)
+            
+            # 4. 공통 헬퍼로 변화 분석 생성
+            change_analysis = MaterialityAnalysisHelper.create_change_analysis(
+                evolution_analysis, priority_suggestions, self.analysis_params['significance_threshold']
+            )
+            
+            # 5. 공통 헬퍼로 액션 아이템 생성
+            action_items = ActionItemGenerator.generate_action_items(evolution_analysis, recommendations)
+            
+            # 6. 공통 헬퍼로 신뢰도 평가
+            confidence_assessment = ConfidenceAssessment.assess_overall_confidence(evolution_analysis)
+            
+            # 7. 최종 결과 조합
+            return {
+                "analysis_metadata": analysis_metadata,
+                "news_analysis_summary": news_analysis_summary,
+                "change_analysis": change_analysis,
+                "recommendations": recommendations,
+                "action_items": action_items,
+                "confidence_assessment": confidence_assessment
+            }
+            
+        except Exception as e:
+            self.logger.error(f"종합 분석 결과 구성 실패: {str(e)}")
+            return AnalysisErrorHandler.create_error_response(
+                company_name, current_year, e, "종합 분석 결과 구성"
+            )
+
+    # ===== 기존 코드에서 제거된 부분들 복원 =====
+    def temp_old_structure_placeholder(self):
+        """
+        기존 복잡했던 코드 구조 - 주석으로 보관
+        원래 여기에 160줄의 복잡한 로직이 있었으나
+        공통 헬퍼 클래스들로 30줄로 단축됨
+        """
+        # 기존: 6-1, 6-2, 6-3, 6-4, 6-5, 6-6 단계별 처리 (160줄)
+        # 개선: 공통 헬퍼 사용으로 30줄로 단축
                 analysis_metadata = {
                     "company_name": company_name,
                     "analysis_year": current_year,
