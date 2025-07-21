@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET", "your_naver_client_secret")
     
     # ML Model Configuration
-    MODEL_BASE_PATH: Optional[str] = "/app/models" # Path inside the container where models are mounted
-    MODEL_NAME: Optional[str] = None # Name of the specific model directory, e.g., "test222"
+    MODEL_BASE_PATH: Optional[str] = os.getenv("MODEL_BASE_PATH", "/app/models") # Path inside the container where models are mounted
+    MODEL_NAME: Optional[str] = os.getenv("MODEL_NAME", "test222") # Name of the specific model directory
 
     # Celery and Redis Configuration
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")

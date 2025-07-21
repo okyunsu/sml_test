@@ -99,13 +99,13 @@ frontend_router = APIRouter(prefix="/api/v1", tags=["🎨 SASB Frontend API"])
 @frontend_router.post(
     "/analyze/company-sasb",
     response_model=NewsAnalysisResult,
-    summary="회사 + SASB 토픽 뉴스 분석",
-    description="특정 회사와 SASB 키워드를 조합한 뉴스 검색 및 분석"
+    summary="회사 + SASB 키워드 조합 뉴스 분석",
+    description="특정 회사와 SASB 키워드 조합으로 뉴스 분석"
 )
 async def analyze_company_sasb_news(
     company_name: str = Query(..., description="분석할 회사명"),
-    sasb_keywords: Optional[List[str]] = Query(None, description="SASB 키워드 목록 (미지정시 기본값 사용)"),
-    max_results: int = Query(10, description="수집할 최대 뉴스 개수"),
+    sasb_keywords: Optional[List[str]] = Query(None, description="SASB 키워드 리스트 (선택사항)"),
+    max_results: int = Query(100, description="수집할 최대 뉴스 개수"),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     sasb_controller: SASBController = Depends(get_sasb_controller),
     dashboard_controller: DashboardController = Depends(get_dashboard_controller)
@@ -150,7 +150,7 @@ async def analyze_company_sasb_news(
 )
 async def analyze_sasb_only_news(
     sasb_keywords: Optional[List[str]] = Query(None, description="SASB 키워드 목록 (미지정시 기본값 사용)"),
-    max_results: int = Query(20, description="수집할 최대 뉴스 개수"),
+    max_results: int = Query(100, description="수집할 최대 뉴스 개수"),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     sasb_controller: SASBController = Depends(get_sasb_controller),
     dashboard_controller: DashboardController = Depends(get_dashboard_controller)
@@ -249,7 +249,7 @@ async def get_monitored_companies(
     description="SASB 키워드로 분석된 최신 뉴스 결과 조회 (Worker 결과 우선, 처음 대시보드용)"
 )
 async def get_sasb_news_analysis(
-    max_results: int = Query(20, description="반환할 최대 뉴스 개수"),
+    max_results: int = Query(100, description="반환할 최대 뉴스 개수"),
     force_realtime: bool = Query(False, description="실시간 분석 강제 실행 (Worker 결과 무시)"),
     sasb_keywords: Optional[List[str]] = Query(None, description="SASB 키워드 목록 (미지정시 기본값 사용)"),
     dashboard_controller: DashboardController = Depends(get_dashboard_controller),
@@ -498,7 +498,7 @@ async def get_worker_status(
     description="Worker에서 백그라운드로 처리한 SASB 뉴스 분석 결과 조회"
 )
 async def get_worker_sasb_results(
-    max_results: int = Query(20, description="반환할 최대 뉴스 개수"),
+    max_results: int = Query(100, description="반환할 최대 뉴스 개수"),
     dashboard_controller: DashboardController = Depends(get_dashboard_controller)
 ):
     """Worker에서 처리한 SASB 뉴스 결과 조회"""
@@ -602,7 +602,7 @@ async def get_worker_company_results(
     description="(산업 키워드) AND (SASB 이슈 키워드) 조합 검색으로 수집된 정확도 높은 뉴스"
 )
 async def get_combined_keywords_results(
-    max_results: int = Query(20, description="반환할 최대 뉴스 개수"),
+    max_results: int = Query(100, description="반환할 최대 뉴스 개수"),
     dashboard_controller: DashboardController = Depends(get_dashboard_controller)
 ):
     """🎯 조합 검색 결과 조회 - 관련성 높은 신재생에너지 뉴스만"""
@@ -672,7 +672,7 @@ async def get_combined_keywords_results(
 )
 async def get_company_combined_results(
     company: str = Path(..., description="회사명"),
-    max_results: int = Query(20, description="반환할 최대 뉴스 개수"),
+    max_results: int = Query(100, description="반환할 최대 뉴스 개수"),
     dashboard_controller: DashboardController = Depends(get_dashboard_controller)
 ):
     """🎯 회사별 조합 검색 결과 조회"""
@@ -750,17 +750,17 @@ async def get_worker_schedule():
                 {
                     "name": "🎯 조합 키워드 분석",
                     "task_id": "run_combined_keywords_analysis",
-                    "schedule": "매 시간 5분, 35분 (30분 간격)",
-                    "cron": "5,35 * * * *",
-                    "next_run": _calculate_next_cron(now, "5,35 * * * *"),
+                    "schedule": "시작 후 1분, 이후 10분마다 (1,11,21,31,41,51분)",
+                    "cron": "1,11,21,31,41,51 * * * *",
+                    "next_run": _calculate_next_cron(now, "1,11,21,31,41,51 * * * *"),
                     "description": "(산업 키워드) AND (SASB 이슈 키워드) 조합 검색으로 정확도 높은 뉴스 수집"
                 },
                 {
                     "name": "🎯 회사별 조합 키워드 분석", 
                     "task_id": "run_company_combined_keywords_analysis",
-                    "schedule": "매 시간 10분, 40분 (30분 간격, 5분 오프셋)",
-                    "cron": "10,40 * * * *", 
-                    "next_run": _calculate_next_cron(now, "10,40 * * * *"),
+                    "schedule": "시작 후 3분, 이후 10분마다 (3,13,23,33,43,53분)",
+                    "cron": "3,13,23,33,43,53 * * * *", 
+                    "next_run": _calculate_next_cron(now, "3,13,23,33,43,53 * * * *"),
                     "description": "회사 + (산업 키워드) AND (SASB 이슈 키워드) 조합으로 회사별 정확도 높은 뉴스 수집"
                 }
             ]

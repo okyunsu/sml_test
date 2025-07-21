@@ -16,13 +16,13 @@ class NaverNewsService:
             },
         )
 
-    async def search_news(self, query: str, display: int = 10, start: int = 1) -> List[NewsItem]:
+    async def search_news(self, query: str, display: int = 100, start: int = 1) -> List[NewsItem]:
         """
         Searches for news articles using a given query.
 
         Args:
             query: The keyword to search for.
-            display: The number of results to display per page.
+            display: The number of results to display per page (최대 100).
             start: The starting point of the search results.
 
         Returns:

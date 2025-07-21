@@ -55,11 +55,13 @@ class MLInferenceService:
         Analyzes the sentiment of a single text string.
         """
         if not self.model or not self.tokenizer:
-            logging.error("모델이 로드되지 않아 감성 분석을 수행할 수 없습니다.")
-            return {"sentiment": "error", "confidence": 0, "error": "Model not loaded"}
+            logging.warning("모델이 로드되지 않아 감성 분석을 중립으로 처리합니다.")
+            # 🎯 모델 로드 실패 시 안전한 기본값 반환
+            return {"sentiment": "중립", "confidence": 0.0}
             
         if not text or not isinstance(text, str) or not text.strip():
-            return {"sentiment": "neutral", "confidence": 1.0, "error": "Input text is empty"}
+            # 🎯 빈 텍스트는 중립으로 처리 (SentimentResult 호환)
+            return {"sentiment": "중립", "confidence": 0.0}
 
         try:
             inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=512).to(self.device)
@@ -86,7 +88,8 @@ class MLInferenceService:
             }
         except Exception as e:
             logging.error(f"Sentiment analysis 중 에러 발생: '{e}'\nInput text: {text}", exc_info=True)
-            return {"sentiment": "error", "confidence": 0, "error": str(e)}
+            # 🎯 에러 시 안전한 기본값 반환 (SentimentResult 호환)
+            return {"sentiment": "중립", "confidence": 0.0}
 
     def _convert_sentiment_label(self, raw_sentiment: str) -> str:
         """

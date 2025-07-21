@@ -33,7 +33,7 @@ class AnalysisService:
             query = f"{company_name} {keyword}" if company_name else keyword
             try:
                 # Corrected method name from get_news to search_news
-                news_items = await self.naver_news_service.search_news(query, display=10)
+                news_items = await self.naver_news_service.search_news(query, display=100)
                 all_news_items.extend(news_items)
             except Exception as e:
                 logging.error(f"'{query}'에 대한 뉴스 검색 중 오류 발생: {e}", exc_info=True)
@@ -115,7 +115,7 @@ class AnalysisService:
                 
                 try:
                     logging.info(f"검색 {combinations_tried + 1}/{max_combinations}: '{query}'")
-                    news_items = await self.naver_news_service.search_news(query, display=10)
+                    news_items = await self.naver_news_service.search_news(query, display=100)
                     all_news_items.extend(news_items)
                     combinations_tried += 1
                     

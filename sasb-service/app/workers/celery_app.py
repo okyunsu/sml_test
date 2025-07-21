@@ -10,15 +10,15 @@ celery_app = Celery(
 )
 
 celery_app.conf.beat_schedule = {
-    # 🎯 조합 검색 방식 (개선된 정확도) - 처음 시작 후 5분, 이후 30분마다
+    # 🎯 조합 검색 방식 (개선된 정확도) - 시작 후 1분, 이후 10분마다 (개발용 빠른 실행)
     'run-combined-keywords-analysis': {
         'task': 'app.workers.analysis_worker.run_combined_keywords_analysis',
-        'schedule': crontab(minute='5,35'),  # 매 시간 5분, 35분에 실행 (30분 간격)
+        'schedule': crontab(minute='1,11,21,31,41,51'),  # 10분 간격으로 실행 (1분 시작)
     },
-    # 회사별 조합 검색 - 처음 시작 후 5분, 이후 30분마다 (조금 오프셋)
+    # 회사별 조합 검색 - 시작 후 3분, 이후 10분마다 (2분 오프셋)
     'run-company-combined-keywords-analysis': {
         'task': 'app.workers.analysis_worker.run_company_combined_keywords_analysis',
-        'schedule': crontab(minute='10,40'),  # 매 시간 10분, 40분에 실행 (30분 간격, 5분 오프셋)
+        'schedule': crontab(minute='3,13,23,33,43,53'),  # 10분 간격으로 실행 (3분 시작, 2분 오프셋)
     },
 }
 

@@ -7,11 +7,11 @@ services:
       - PORT=${PORT:-8003}
       - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
       - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
-      - MODEL_NAME=${MODEL_NAME}
+      - MODEL_NAME=test222
       - MODEL_BASE_PATH=/app/models
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
-      - DISABLE_ML_MODEL=true  # 메인 웹서버에서는 ML 모델 비활성화
+      - DISABLE_ML_MODEL=false  # 메인 웹서버에서도 ML 모델 활성화 (감성분석 필요)
       # CPU 최적화 환경변수
       - OMP_NUM_THREADS=2
       - TOKENIZERS_PARALLELISM=false
@@ -48,7 +48,7 @@ services:
       - PORT=${PORT:-8003}
       - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
       - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
-      - MODEL_NAME=${MODEL_NAME}  # .env 파일의 test222 사용
+      - MODEL_NAME=test222
       - MODEL_BASE_PATH=/app/models
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
@@ -88,7 +88,7 @@ services:
       - PORT=${PORT:-8003}
       - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
       - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
-      - MODEL_NAME=${MODEL_NAME}
+      - MODEL_NAME=test222
       - CELERY_BROKER_URL=${CELERY_BROKER_URL}
       - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
       - DISABLE_ML_MODEL=true  # Beat에서는 ML 모델 로딩 비활성화

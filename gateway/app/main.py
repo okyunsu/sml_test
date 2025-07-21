@@ -25,7 +25,7 @@ load_dotenv()
 # ✅ 애플리케이션 시작 시 실행
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("🚀 News Gateway API 서비스 시작 (Dynamic Proxy)")
+    logger.info("🚀 News Gateway API 서비스 시작 (Dynamic Proxy) - News & SASB 연결")
     yield
     logger.info("🛑 News Gateway API 서비스 종료")
 
@@ -184,13 +184,16 @@ app.include_router(gateway_router)
 async def root():
     return {
         "message": "News Gateway API v3.0.0 - Dynamic Proxy",
-        "description": "동적 프록시 기반 Gateway - 모든 요청을 자동으로 news-service로 전달",
+        "description": "동적 프록시 기반 Gateway - News & SASB 서비스 연결",
         "architecture": "dynamic-proxy",
         "supported_methods": ["GET", "POST", "PUT", "DELETE", "PATCH"],
         "usage": {
             "pattern": "/gateway/v1/{service}/{path}",
-            "example": "/gateway/v1/news/api/search",
-            "service_options": ["news"]
+            "examples": {
+                "news": "/gateway/v1/news/api/search",
+                "sasb": "/gateway/v1/sasb/api/v1/analyze/company-sasb"
+            },
+            "service_options": ["news", "sasb"]
         },
         "endpoints": {
             "health": "/gateway/v1/health",
@@ -202,5 +205,5 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001) 
+    uvicorn.run(app, host="0.0.0.0", port=8080) 
 

@@ -19,7 +19,7 @@ class SASBController:
         self, 
         company_name: str, 
         sasb_keywords: Optional[List[str]] = None,
-        max_results: int = 10
+        max_results: int = 100
     ) -> NewsAnalysisResult:
         """회사 + SASB 키워드 조합 뉴스 분석"""
         try:

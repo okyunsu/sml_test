@@ -22,6 +22,16 @@ class ServiceProxyFactory:
             # /api/v1/ 접두사를 추가하기만 하면 됨
             if not path.startswith("api/v1/"):
                 path = f"api/v1/{path}"
+        # ✅ sasb-service의 Gateway 호환 API로 단순 매핑
+        elif self.service_type == ServiceType.SASB:
+            # sasb-service는 이미 /api/v1/ 접두사를 가지고 있음
+            if not path.startswith("api/v1/"):
+                path = f"api/v1/{path}"
+        # ✅ material-service의 Gateway 호환 API로 단순 매핑
+        elif self.service_type == ServiceType.MATERIAL:
+            # material-service는 이미 /api/v1/ 접두사를 가지고 있음
+            if not path.startswith("api/v1/"):
+                path = f"api/v1/{path}"
         
         url = f"{self.base_url}/{path}"
         print(f"🔍 Requesting URL: {url}")

@@ -2,12 +2,13 @@
 
 ## 📋 개요
 
-News Gateway는 **동적 프록시 기반**의 API Gateway입니다. 모든 요청을 자동으로 News Service로 전달하며, 프론트엔드에서 간단하게 사용할 수 있습니다.
+News Gateway는 **동적 프록시 기반**의 API Gateway입니다. 모든 요청을 자동으로 News Service와 SASB Service로 전달하며, 프론트엔드에서 간단하게 사용할 수 있습니다.
 
 ## 🚀 기본 정보
 
 - **Gateway URL**: `http://localhost:8080`
 - **News Service URL**: `http://localhost:8002` (직접 호출도 가능)
+- **SASB Service URL**: `http://localhost:8003` (직접 호출도 가능)
 - **API 문서**: `http://localhost:8080/docs`
 - **아키텍처**: 동적 프록시 패턴
 
@@ -19,14 +20,16 @@ News Gateway는 **동적 프록시 기반**의 API Gateway입니다. 모든 요�
 /gateway/v1/{service}/{path}
 ```
 
-- **service**: `news` (현재 지원하는 서비스)
-- **path**: News Service의 실제 API 경로
+- **service**: `news` 또는 `sasb` (현재 지원하는 서비스)
+- **path**: 각 서비스의 실제 API 경로
 
 ### 예시 매핑
 ```bash
-# Gateway 요청                              →  News Service 실제 경로
-POST /gateway/v1/news/search                →  POST /search
-GET  /gateway/v1/news/dashboard/status      →  GET  /dashboard/status
+# Gateway 요청                                   →  실제 서비스 경로
+POST /gateway/v1/news/search                     →  POST /api/v1/search (News Service)
+GET  /gateway/v1/news/dashboard/status           →  GET  /api/v1/dashboard/status (News Service)
+POST /gateway/v1/sasb/analyze/company-sasb       →  POST /api/v1/analyze/company-sasb (SASB Service)
+GET  /gateway/v1/sasb/health                     →  GET  /api/v1/health (SASB Service)
 ```
 
 ## 📝 API 엔드포인트 전체 목록
