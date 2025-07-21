@@ -11,8 +11,8 @@ class NaverNewsService:
         self.api_client = HttpApiClient(
             base_url="https://openapi.naver.com",
             headers={
-                "X-Naver-Client-Id": settings.NAVER_CLIENT_ID,
-                "X-Naver-Client-Secret": settings.NAVER_CLIENT_SECRET,
+                "X-Naver-Client-Id": settings.NAVER_CLIENT_ID or "",
+                "X-Naver-Client-Secret": settings.NAVER_CLIENT_SECRET or "",
             },
         )
 

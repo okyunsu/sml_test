@@ -1,11 +1,11 @@
 import asyncio
 import json
+import redis
 from urllib.parse import urlparse
 from typing import Optional, List, Dict, Any
 from .celery_app import celery_app
 from ..domain.service.analysis_service import AnalysisService
 from ..domain.model.sasb_dto import NewsAnalysisRequest
-from ..core.redis_client import RedisClient
 from ..config.settings import settings
 import logging
 
@@ -113,7 +113,7 @@ async def async_analyze_with_combined_keywords(
     )
 
 def run_dual_search_analysis(
-    redis_client: RedisClient,
+    redis_client: redis.Redis,
     analysis_service: AnalysisService,
     keyword_list: List[str],
     index_redis_key: str,
@@ -123,98 +123,59 @@ def run_dual_search_analysis(
     search_type: str = "dual"  # "company_sasb", "sasb_only", "dual"
 ):
     """
-    새로운 이중 검색 로직: 
-    1. 회사 + SASB 키워드 조합 검색
-    2. SASB 키워드 전용 검색
-    결과를 Redis에 캐시합니다.
+    새로운 이중 검색 로직 (리팩토링됨)
+    공통 헬퍼 클래스 사용으로 112줄 → 30줄로 단축
     """
-    redis_client.set(status_redis_key, "IN_PROGRESS")
-    try:
-        # 1. Get the index of the keyword to use for this run
-        current_index_str = redis_client.get(index_redis_key)
-        current_index = int(current_index_str) if current_index_str else 0
-        
-        keyword_to_search = keyword_list[current_index]
-        logging.info(f"이중 검색 분석 실행: '{keyword_to_search}' (타입: {search_type})")
-
-        # 2. Run dual search analysis using proper async handling
-        all_new_articles = []
-        
-        # 새로운 이벤트 루프 생성 (Celery 워커에서 안전)
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            if search_type in ["company_sasb", "dual"] and companies:
-                # 방식 1: 회사 + SASB 키워드 조합 검색
-                for company in companies:
-                    logging.info(f"회사+SASB 검색: {company} + {keyword_to_search}")
-                    company_sasb_articles = loop.run_until_complete(
-                        async_analyze_and_cache_news(
-                            analysis_service,
-                            keywords=[keyword_to_search], 
-                            company_name=company
-                        )
-                    )
-                    # 각 기사에 검색 타입 메타데이터 추가
-                    for article in company_sasb_articles:
-                        article_dict: Dict[str, Any] = article.dict()
-                        article_dict['search_type'] = 'company_sasb'
-                        article_dict['company'] = company
-                        all_new_articles.append(article_dict)
-            
-            if search_type in ["sasb_only", "dual"]:
-                # 방식 2: SASB 키워드 전용 검색 (회사명 없음)
-                logging.info(f"SASB 전용 검색: {keyword_to_search}")
-                sasb_only_articles = loop.run_until_complete(
-                    async_analyze_and_cache_news(
-                        analysis_service,
-                        keywords=[keyword_to_search], 
-                        company_name=None
-                    )
-                )
-                # 각 기사에 검색 타입 메타데이터 추가
-                for article in sasb_only_articles:
-                    article_dict: Dict[str, Any] = article.dict()
-                    article_dict['search_type'] = 'sasb_only'
-                    all_new_articles.append(article_dict)
-        
-        finally:
-            loop.close()
-
-        # 3. Cache management
-        existing_data_str = redis_client.get(result_redis_key)
-        existing_articles = json.loads(existing_data_str) if existing_data_str else []
-        
-        # 4. Merge and deduplicate
-        combined_articles = existing_articles + all_new_articles
-        seen_links = set()
-        unique_articles = []
-        for article in combined_articles:
-            link = article.get('link', '')
-            if link and link not in seen_links:
-                seen_links.add(link)
-                unique_articles.append(article)
-        
-        # 5. Limit the number of articles and save to Redis
-        if len(unique_articles) > MAX_ARTICLES_IN_CACHE:
-            unique_articles = unique_articles[:MAX_ARTICLES_IN_CACHE]
-        
-        redis_client.set(result_redis_key, json.dumps(unique_articles, ensure_ascii=False), ex=3600)
-        
-        # 6. Update the index for the next run
-        next_index = (current_index + 1) % len(keyword_list)
-        redis_client.set(index_redis_key, str(next_index))
-        
-        redis_client.set(status_redis_key, "COMPLETED")
-        logging.info(f"이중 검색 분석 완료. 총 {len(unique_articles)}개 기사 캐시됨.")
-        
-        return len(unique_articles)
+    from shared.services.worker_helper import DualSearchHelper, CacheManager, AsyncWorkflowManager
     
+    # 1. 상태 초기화 및 키워드 인덱스 조회
+    CacheManager.update_status(redis_client, status_redis_key, "IN_PROGRESS")
+    current_index, keyword_to_search = DualSearchHelper.get_current_keyword_index(
+        redis_client, index_redis_key, keyword_list
+    )
+    
+    try:
+        # 2. 비동기 이중 검색 실행
+        all_new_articles = _execute_dual_search_with_event_loop(
+            analysis_service, keyword_to_search, companies, search_type
+        )
+        
+        # 3. 캐시 관리: 기존 기사와 병합 및 중복 제거
+        existing_articles = CacheManager.get_existing_articles(redis_client, result_redis_key)
+        unique_articles = DualSearchHelper.merge_and_deduplicate_articles(
+            existing_articles, all_new_articles
+        )
+        
+        # 4. Redis에 저장 및 인덱스 업데이트
+        total_articles = CacheManager.save_articles_to_cache(
+            redis_client, result_redis_key, unique_articles, MAX_ARTICLES_IN_CACHE
+        )
+        DualSearchHelper.update_keyword_index(redis_client, index_redis_key, current_index, keyword_list)
+        
+        # 5. 완료 상태 업데이트
+        CacheManager.update_status(redis_client, status_redis_key, "COMPLETED")
+        logging.info(f"이중 검색 분석 완료. 총 {total_articles}개 기사 캐시됨.")
+        return total_articles
+        
     except Exception as e:
         logging.error(f"이중 검색 분석 중 오류 발생: {e}", exc_info=True)
-        redis_client.set(status_redis_key, f"FAILED: {str(e)}")
+        CacheManager.update_status(redis_client, status_redis_key, f"FAILED: {str(e)}")
         return 0
+
+
+def _execute_dual_search_with_event_loop(analysis_service, keyword: str, companies: Optional[List[str]], search_type: str):
+    """이벤트 루프를 안전하게 관리하면서 이중 검색 실행"""
+    from shared.services.worker_helper import AsyncWorkflowManager
+    
+    loop = AsyncWorkflowManager.create_safe_event_loop()
+    try:
+        return loop.run_until_complete(
+            AsyncWorkflowManager.run_dual_search_workflow(
+                analysis_service, keyword, companies, search_type
+            )
+        )
+    finally:
+        AsyncWorkflowManager.close_event_loop(loop)
 
 
 # --- Celery Tasks ---

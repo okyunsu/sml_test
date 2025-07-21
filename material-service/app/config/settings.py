@@ -34,4 +34,8 @@ class Settings(BaseServiceSettings):
     SASB_SERVICE_URL: str = "http://localhost:8003"
 
 # 설정 인스턴스 생성
-settings = Settings() 
+settings = Settings()
+
+def get_settings() -> Settings:
+    """설정 인스턴스 반환 (DI 컨테이너 호환성)"""
+    return settings 

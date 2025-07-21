@@ -720,135 +720,34 @@ class NewsMLService:
         max_confidence: float = 0.95
     ) -> Dict[str, Any]:
         """
-        훈련된 모델에 신뢰도 보정 적용 (PyTorch 2.6+ 필요하므로 현재 버전에서는 건너뜀)
-        
-        Args:
-            model_path: 훈련된 모델 경로
-            validation_dataset_file: 검증 데이터셋 파일 (없으면 기본 검증셋 사용)
-            temperature: Temperature scaling 값
-            max_confidence: 최대 신뢰도 제한
+        훈련된 모델에 신뢰도 보정 적용 (리팩토링됨)
+        공통 헬퍼 클래스 사용으로 167줄 → 25줄로 단축
         """
+        from shared.services.calibration_helper import CalibrationValidator, CalibrationWorkflowManager
+        
         try:
-            logger.warning(f"신뢰도 보정을 건너뜁니다. PyTorch 2.6+ 필요 (현재: {torch.__version__})")
+            # 1. PyTorch 버전 호환성 체크
+            version_check = CalibrationValidator.check_pytorch_version()
+            if not version_check["is_compatible"]:
+                return {
+                    **version_check,
+                    "model_path": model_path
+                }
             
-            # PyTorch 2.6+ 보안 요구사항으로 인해 현재 버전에서는 건너뜀
-            return {
-                "success": False,
-                "message": f"PyTorch 2.6+ 필요 (현재: {torch.__version__})",
-                "model_path": model_path,
-                "calibration_applied": False,
-                "skipped_reason": "pytorch_version_requirement"
-            }
-            
-            # 원래 코드는 PyTorch 2.6+에서만 실행
-            # 보정 서비스 초기화
+            # 2. 보정 서비스 초기화
+            from ..calibration_service import ConfidenceCalibrationService
             calibration_service = ConfidenceCalibrationService(max_confidence)
             
-            # 모델과 토크나이저 로드 (PyTorch 2.6+에서만)
-            model = AutoModelForSequenceClassification.from_pretrained(model_path)
-            tokenizer = AutoTokenizer.from_pretrained(model_path)
-            model.to(self.device)
-            model.eval()
-            
-            # 검증 데이터 로드
-            if validation_dataset_file and os.path.exists(validation_dataset_file):
-                df_val = pd.read_csv(validation_dataset_file, encoding="utf-8")
-            else:
-                # 기본 검증 데이터 사용 (훈련 데이터의 20%)
-                logger.info("검증 데이터셋이 없어 기본 검증 데이터를 사용합니다")
-                return {"error": "검증 데이터셋이 필요합니다"}
-            
-            # 라벨 인코더 로드
-            label_encoder_path = os.path.join(model_path, "label_encoder.json")
-            if os.path.exists(label_encoder_path):
-                with open(label_encoder_path, 'r', encoding='utf-8') as f:
-                    label_mapping = json.load(f)
-            else:
-                logger.warning("라벨 인코더를 찾을 수 없습니다")
-                return {"error": "라벨 인코더를 찾을 수 없습니다"}
-            
-            # 텍스트와 라벨 준비
-            texts = df_val["text"].tolist()
-            true_labels = df_val["encoded_label"].tolist() if "encoded_label" in df_val.columns else df_val["category_label"].tolist()
-            
-            # 예측 수행 (보정 전)
-            original_predictions = []
-            original_confidences = []
-            calibrated_predictions = []
-            calibrated_confidences = []
-            
-            logger.info(f"검증 데이터 {len(texts)}개에 대해 신뢰도 보정 적용 중...")
-            
-            for i, text in enumerate(texts):
-                if i % 100 == 0:
-                    logger.info(f"진행률: {i}/{len(texts)} ({i/len(texts)*100:.1f}%)")
-                
-                # 텍스트 토크나이징
-                inputs = tokenizer(
-                    text, 
-                    return_tensors="pt", 
-                    truncation=True, 
-                    padding=True, 
-                    max_length=self.max_length
-                )
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
-                
-                # 모델 예측
-                with torch.no_grad():
-                    outputs = model(**inputs)
-                    logits = outputs.logits[0]
-                
-                # 원본 예측 (보정 전)
-                original_probs = torch.softmax(logits, dim=-1)
-                original_pred = torch.argmax(original_probs, dim=-1).item()
-                original_conf = torch.max(original_probs, dim=-1)[0].item()
-                
-                original_predictions.append(original_pred)
-                original_confidences.append(original_conf)
-                
-                # 보정된 예측
-                calibrated_pred, calibrated_conf, _ = calibration_service.calibrate_prediction(
-                    logits, text, temperature, apply_confidence_cap=True
-                )
-                
-                calibrated_predictions.append(calibrated_pred)
-                calibrated_confidences.append(calibrated_conf)
-            
-            # 보정 성능 평가
-            original_metrics = calibration_service.evaluate_calibration(
-                original_confidences, true_labels, original_predictions
+            # 3. 통합 보정 워크플로우 실행
+            return await CalibrationWorkflowManager.execute_calibration_workflow(
+                model_path=model_path,
+                validation_dataset_file=validation_dataset_file,
+                temperature=temperature,
+                max_confidence=max_confidence,
+                calibration_service=calibration_service,
+                device=self.device,
+                max_length=self.max_length
             )
-            
-            calibrated_metrics = calibration_service.evaluate_calibration(
-                calibrated_confidences, true_labels, calibrated_predictions
-            )
-            
-            # 보정 설정 저장
-            calibration_config = {
-                "temperature": temperature,
-                "max_confidence": max_confidence,
-                "calibration_applied": True,
-                "boundary_keywords": calibration_service.boundary_keywords
-            }
-            
-            calibration_config_path = os.path.join(model_path, "calibration_config.json")
-            with open(calibration_config_path, 'w', encoding='utf-8') as f:
-                json.dump(calibration_config, f, ensure_ascii=False, indent=2)
-            
-            logger.info("신뢰도 보정 적용 완료")
-            
-            return {
-                "model_path": model_path,
-                "calibration_config": calibration_config,
-                "original_metrics": original_metrics,
-                "calibrated_metrics": calibrated_metrics,
-                "improvement": {
-                    "ece_reduction": original_metrics["ece"] - calibrated_metrics["ece"],
-                    "mce_reduction": original_metrics["mce"] - calibrated_metrics["mce"],
-                    "confidence_reduction": original_metrics["avg_confidence"] - calibrated_metrics["avg_confidence"]
-                },
-                "validation_samples": len(texts)
-            }
             
         except Exception as e:
             logger.error(f"신뢰도 보정 적용 중 오류: {str(e)}")

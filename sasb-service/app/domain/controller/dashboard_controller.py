@@ -8,22 +8,24 @@ import sys
 # ✅ Python Path 설정 (shared 모듈 접근용)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))))
 
-# ✅ 공통 Redis 팩토리 사용
-from shared.core.redis_factory import RedisClientFactory
-
-from app.config.settings import settings
-
 logger = logging.getLogger(__name__)
 
 class DashboardController:
-    """SASB 대시보드 컨트롤러 - 캐시 및 시스템 상태 관리"""
+    """SASB 대시보드 컨트롤러 - 의존성 주입 적용"""
     
-    def __init__(self):
-        self.redis_client = self._get_redis_client()
+    def __init__(self, redis_client=None):
+        """의존성 주입 방식으로 Redis 클라이언트 받기"""
+        self.redis_client = redis_client
+        
+        # 기존 방식도 지원 (호환성)
+        if self.redis_client is None:
+            self.redis_client = self._get_redis_client_legacy()
     
-    def _get_redis_client(self):
-        """Redis 클라이언트 생성 (공통 팩토리 사용)"""
+    def _get_redis_client_legacy(self):
+        """레거시 Redis 클라이언트 생성 (호환성용)"""
         try:
+            from shared.core.redis_factory import RedisClientFactory
+            from app.config.settings import settings
             return RedisClientFactory.create_from_url(settings.CELERY_BROKER_URL)
         except Exception as e:
             logger.error(f"Redis 클라이언트 생성 실패: {e}")

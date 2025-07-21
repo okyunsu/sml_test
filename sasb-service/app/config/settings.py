@@ -27,4 +27,8 @@ class Settings(MLServiceSettings):
     # 기존 호환성 유지용 (deprecated)
     APP_VERSION: str = "1.0.0"  # VERSION과 동일
 
-settings = Settings() 
+settings = Settings()
+
+def get_settings() -> Settings:
+    """설정 인스턴스 반환 (DI 컨테이너 호환성)"""
+    return settings 
