@@ -86,145 +86,184 @@ class MaterialityAnalysisService:
         """
         try:
             self.logger.info(f"🎯 {company_name} {current_year}년 중대성 평가 변화 분석 시작")
-        
-        # 1. 기준 평가 로드
-        if base_assessment is None:
-            base_assessment = self.file_service.load_company_assessment(
-                company_name, current_year - 1
-            )
-        
-        if not base_assessment:
-            return await self._analyze_without_base_assessment(company_name, current_year)
-        
-        # 2. 변화 분석 수행
-        try:
-            evolution_analysis = await self.update_engine.analyze_materiality_evolution(
-                base_assessment, current_year, company_name
-            )
-            self.logger.info(f"🔄 변화 분석 완료: {len(evolution_analysis.get('topic_changes', []))}개 토픽")
-        except Exception as e:
-            self.logger.error(f"❌ 변화 분석 실패: {str(e)}")
-            raise
-        
-        # 3. 제안 사항 생성
-        try:
-            recommendations = self._generate_change_recommendations(
-                evolution_analysis, base_assessment
-            )
-            self.logger.info(f"📋 제안 사항 생성 완료: {len(recommendations)}개")
-        except Exception as e:
-            self.logger.error(f"❌ 제안 사항 생성 실패: {str(e)}")
-            raise
-        
-        # 4. 우선순위 변화 제안
-        try:
-            priority_suggestions = self._generate_priority_suggestions(
-                evolution_analysis, base_assessment
-            )
-            self.logger.info(f"🔄 우선순위 제안 완료: {len(priority_suggestions)}개")
-        except Exception as e:
-            self.logger.error(f"❌ 우선순위 제안 실패: {str(e)}")
-            raise
-        
-        # 5. 신규 이슈 검토 제안
-        try:
-            new_issue_suggestions = self._generate_new_issue_suggestions(
-                evolution_analysis
-            )
-            self.logger.info(f"🆕 신규 이슈 제안 완료: {len(new_issue_suggestions)}개")
-        except Exception as e:
-            self.logger.error(f"❌ 신규 이슈 제안 실패: {str(e)}")
-            raise
-        
-        # 6. 종합 분석 결과 구성
-        try:
-            self.logger.info("🔧 종합 분석 결과 구성 시작")
             
-            # 6-1. 기본 메타데이터
-            analysis_metadata = {
-                "company_name": company_name,
-                "analysis_year": current_year,
-                "base_year": base_assessment.year,
-                "analysis_date": datetime.now().isoformat(),
-                "analysis_type": "news_based_change_analysis",
-                "disclaimer": "이 분석은 뉴스 데이터를 기반으로 한 참고용 제안 사항입니다. 실제 중대성 평가에는 추가적인 검토가 필요합니다."
-            }
-            self.logger.info("✅ 6-1. 기본 메타데이터 완료")
+            # 1. 기준 평가 로드 (2024년 SR 보고서 데이터)
+            if base_assessment is None:
+                base_assessment = self.file_service.load_company_assessment(
+                    company_name, 2024
+                )
+        
+            if not base_assessment:
+                return await self._analyze_without_base_assessment(company_name, current_year)
             
-            # 6-2. 뉴스 분석 요약
-            news_analysis_summary = {
-                "total_articles_analyzed": evolution_analysis['news_data_summary']['total_articles'],
-                "analysis_period": evolution_analysis['news_data_summary']['analysis_period'],
-                "overall_trend": evolution_analysis['overall_trend']['overall_direction'],
-                "update_necessity": evolution_analysis['overall_trend']['update_necessity'],
-                "confidence_level": evolution_analysis['overall_trend']['avg_confidence']
-            }
-            self.logger.info("✅ 6-2. 뉴스 분석 요약 완료")
-            
-            # 6-3. 변화 분석 (여기서 에러 가능성 높음)
+            # 2. 변화 분석 수행
             try:
-                significant_changes = len([
-                    change for change in evolution_analysis['topic_changes']
-                    if abs(change['change_magnitude']) > self.analysis_params['significance_threshold']
-                ])
-                self.logger.info(f"✅ 6-3-a. 중요 변화 계산 완료: {significant_changes}개")
+                evolution_analysis = await self.update_engine.analyze_materiality_evolution(
+                    base_assessment, current_year, company_name
+                )
+                self.logger.info(f"🔄 변화 분석 완료: {len(evolution_analysis.get('topic_changes', []))}개 토픽")
             except Exception as e:
-                self.logger.error(f"❌ 6-3-a. 중요 변화 계산 실패: {str(e)}")
+                self.logger.error(f"❌ 변화 분석 실패: {str(e)}")
                 raise
             
-            change_analysis = {
-                "existing_topics": priority_suggestions,
-                "new_issues_discovered": new_issue_suggestions,
-                "change_distribution": evolution_analysis['overall_trend']['change_distribution'],
-                "significant_changes": significant_changes
-            }
-            self.logger.info("✅ 6-3. 변화 분석 완료")
-            
-            # 6-4. 액션 아이템 생성
+            # 3. 제안 사항 생성
             try:
-                action_items = self._generate_action_items(evolution_analysis, recommendations)
-                self.logger.info("✅ 6-4. 액션 아이템 생성 완료")
+                recommendations = self._generate_change_recommendations(
+                    evolution_analysis, base_assessment
+                )
+                self.logger.info(f"📋 제안 사항 생성 완료: {len(recommendations)}개")
             except Exception as e:
-                self.logger.error(f"❌ 6-4. 액션 아이템 생성 실패: {str(e)}")
+                self.logger.error(f"❌ 제안 사항 생성 실패: {str(e)}")
                 raise
             
-            # 6-5. 신뢰도 평가
+            # 4. 우선순위 변화 제안
             try:
-                confidence_assessment = self._assess_overall_confidence(evolution_analysis)
-                self.logger.info("✅ 6-5. 신뢰도 평가 완료")
+                priority_suggestions = self._generate_priority_suggestions(
+                    evolution_analysis, base_assessment
+                )
+                self.logger.info(f"🔄 우선순위 제안 완료: {len(priority_suggestions)}개")
             except Exception as e:
-                self.logger.error(f"❌ 6-5. 신뢰도 평가 실패: {str(e)}")
+                self.logger.error(f"❌ 우선순위 제안 실패: {str(e)}")
                 raise
             
-            # 6-6. 최종 결과 조합
-            analysis_result = {
-                "analysis_metadata": analysis_metadata,
-                "news_analysis_summary": news_analysis_summary,
-                "change_analysis": change_analysis,
-                "recommendations": recommendations,
-                "action_items": action_items,
-                "confidence_assessment": confidence_assessment
-            }
-            
-            self.logger.info("✅ 6. 종합 분석 결과 구성 완료")
-            
-        except Exception as e:
-            self.logger.error(f"❌ 6. 종합 분석 결과 구성 실패: {str(e)}")
-            # 디버깅을 위한 상세 정보
-            self.logger.error(f"🔍 evolution_analysis keys: {list(evolution_analysis.keys())}")
-            if 'topic_changes' in evolution_analysis:
-                self.logger.error(f"🔍 topic_changes 샘플: {evolution_analysis['topic_changes'][:1] if evolution_analysis['topic_changes'] else '빈 리스트'}")
-            raise
+            # 5. 신규 이슈 검토 제안 (비활성화)
+            try:
+                # 신규 이슈 발견 기능 비활성화로 인해 빈 리스트 처리
+                new_issue_suggestions = []
+                self.logger.info(f"🚫 신규 이슈 제안 비활성화: 기존 토픽 중심 분석에 집중")
+            except Exception as e:
+                self.logger.error(f"❌ 신규 이슈 제안 실패: {str(e)}")
+                new_issue_suggestions = []
         
-            self.logger.info(f"✅ {company_name} 중대성 평가 변화 분석 완료")
-            return analysis_result
-        
+            # 6. 종합 분석 결과 구성
+            try:
+                self.logger.info("🔧 종합 분석 결과 구성 시작")
+                
+                # 안전한 데이터 접근을 위한 추가 검증
+                if not isinstance(evolution_analysis, dict):
+                    raise ValueError(f"evolution_analysis가 딕셔너리가 아님: {type(evolution_analysis)}")
+                
+                if 'topic_changes' not in evolution_analysis:
+                    self.logger.error("❌ evolution_analysis에 topic_changes 키가 없음")
+                    evolution_analysis['topic_changes'] = []
+                
+                if 'new_issues' not in evolution_analysis:
+                    self.logger.error("❌ evolution_analysis에 new_issues 키가 없음")
+                    evolution_analysis['new_issues'] = []
+                
+                if 'overall_trend' not in evolution_analysis:
+                    self.logger.error("❌ evolution_analysis에 overall_trend 키가 없음")
+                    evolution_analysis['overall_trend'] = {'overall_direction': 'stable', 'update_necessity': 'low', 'avg_confidence': 0.5}
+                
+                # 6-1. 기본 메타데이터
+                analysis_metadata = {
+                    "company_name": company_name,
+                    "analysis_year": current_year,
+                    "base_year": base_assessment.year,
+                    "analysis_date": datetime.now().isoformat(),
+                    "analysis_type": "news_based_change_analysis",
+                    "disclaimer": "이 분석은 뉴스 데이터를 기반으로 한 참고용 제안 사항입니다. 실제 중대성 평가에는 추가적인 검토가 필요합니다."
+                }
+                self.logger.info("✅ 6-1. 기본 메타데이터 완료")
+                
+                # 6-2. 뉴스 분석 요약
+                news_analysis_summary = {
+                    "total_articles_analyzed": evolution_analysis['news_data_summary']['total_articles'],
+                    "analysis_period": evolution_analysis['news_data_summary']['analysis_period'],
+                    "overall_trend": evolution_analysis['overall_trend']['overall_direction'],
+                    "update_necessity": evolution_analysis['overall_trend']['update_necessity'],
+                    "confidence_level": evolution_analysis['overall_trend']['avg_confidence']
+                }
+                self.logger.info("✅ 6-2. 뉴스 분석 요약 완료")
+                
+                # 6-3. 변화 분석 (여기서 에러 가능성 높음)
+                try:
+                    significant_changes = len([
+                        change for change in evolution_analysis['topic_changes']
+                        if abs(change['change_magnitude']) > self.analysis_params['significance_threshold']
+                    ])
+                    self.logger.info(f"✅ 6-3-a. 중요 변화 계산 완료: {significant_changes}개")
+                except Exception as e:
+                    self.logger.error(f"❌ 6-3-a. 중요 변화 계산 실패: {str(e)}")
+                    raise
+                
+                change_analysis = {
+                    "existing_topics": priority_suggestions,
+                    "topic_analysis_summary": {
+                        "total_topics_analyzed": len(priority_suggestions),
+                        "topics_with_significant_change": significant_changes,
+                        "average_confidence": sum([topic.get('confidence', 0) for topic in priority_suggestions]) / len(priority_suggestions) if priority_suggestions else 0,
+                        "news_coverage": {
+                            "total_articles_analyzed": evolution_analysis['news_data_summary']['total_articles'],
+                            "analysis_period": evolution_analysis['news_data_summary']['analysis_period']
+                        }
+                    },
+                    "change_distribution": evolution_analysis['overall_trend']['change_distribution'],
+                    "significant_changes": significant_changes
+                }
+                self.logger.info("✅ 6-3. 변화 분석 완료")
+                
+                # 6-4. 액션 아이템 생성
+                try:
+                    action_items = self._generate_action_items(evolution_analysis, recommendations)
+                    self.logger.info("✅ 6-4. 액션 아이템 생성 완료")
+                except Exception as e:
+                    self.logger.error(f"❌ 6-4. 액션 아이템 생성 실패: {str(e)}")
+                    raise
+                
+                # 6-5. 신뢰도 평가
+                try:
+                    confidence_assessment = self._assess_overall_confidence(evolution_analysis)
+                    self.logger.info("✅ 6-5. 신뢰도 평가 완료")
+                except Exception as e:
+                    self.logger.error(f"❌ 6-5. 신뢰도 평가 실패: {str(e)}")
+                    raise
+                
+                # 6-6. 최종 결과 조합
+                analysis_result = {
+                    "analysis_metadata": analysis_metadata,
+                    "news_analysis_summary": news_analysis_summary,
+                    "change_analysis": change_analysis,
+                    "recommendations": recommendations,
+                    "action_items": action_items,
+                    "confidence_assessment": confidence_assessment
+                }
+                
+                self.logger.info("✅ 6. 종합 분석 결과 구성 완료")
+                
+                # 전체 분석 성공적으로 완료
+                self.logger.info(f"✅ {company_name} 중대성 평가 변화 분석 완료")
+                return analysis_result
+                
+            except Exception as e:
+                self.logger.error(f"❌ 6. 종합 분석 결과 구성 실패: {str(e)}")
+                # 디버깅을 위한 상세 정보
+                self.logger.error(f"🔍 evolution_analysis keys: {list(evolution_analysis.keys())}")
+                if 'topic_changes' in evolution_analysis:
+                    self.logger.error(f"🔍 topic_changes 샘플: {evolution_analysis['topic_changes'][:1] if evolution_analysis['topic_changes'] else '빈 리스트'}")
+                raise
+
         except Exception as e:
             self.logger.error(f"💥 전체 분석 프로세스 실패: {str(e)}")
             self.logger.error(f"💥 에러 타입: {type(e).__name__}")
             import traceback
             self.logger.error(f"💥 상세 스택 트레이스:\n{traceback.format_exc()}")
-            raise
+            
+            # 기본 응답 반환 (500 에러 대신)
+            return {
+                "analysis_metadata": {
+                    "company_name": company_name,
+                    "analysis_year": current_year,
+                    "analysis_date": datetime.now().isoformat(),
+                    "error": str(e),
+                    "status": "failure"
+                },
+                "error_details": {
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "suggested_action": "서비스 관리자에게 문의하세요"
+                }
+            }
     
     async def _analyze_without_base_assessment(
         self,
@@ -302,43 +341,44 @@ class MaterialityAnalysisService:
         ]
         
         for change in high_change_topics[:5]:  # 상위 5개
-            rec_type = "priority_review"
-            if change['change_magnitude'] > 0:
-                action = "우선순위 상향 검토"
-                rationale = f"뉴스 활동 증가 ({change['change_magnitude']:+.2f})"
-            else:
-                action = "우선순위 하향 검토"
-                rationale = f"뉴스 활동 감소 ({change['change_magnitude']:+.2f})"
-            
-            recommendations.append({
-                "type": rec_type,
-                "topic_name": change['topic_name'],
-                "current_priority": change['previous_priority'],
-                "suggested_action": action,
-                "rationale": rationale,
-                "confidence": change['confidence'],
-                "news_evidence": {
-                    "total_articles": change['news_metrics']['total_articles'],
-                    "relevant_articles": change['news_metrics']['relevant_articles'],
-                    "avg_sentiment": change['news_metrics']['avg_sentiment']
-                }
-            })
-        
-        # 2. 신규 이슈 추천
-        for new_issue in evolution_analysis['new_issues'][:3]:  # 상위 3개
-            if new_issue['issue_score'] > self.analysis_params['new_issue_threshold']:
+            try:
+                # 디버깅: change 딕셔너리 구조 확인
+                self.logger.error(f"🔍 change 구조: {change}")
+                self.logger.error(f"🔍 change keys: {list(change.keys())}")
+                
+                rec_type = "priority_review"
+                change_magnitude = change.get('change_magnitude', 0.0)
+                if change_magnitude > 0:
+                    action = "우선순위 상향 검토"
+                    rationale = f"뉴스 활동 증가 ({change_magnitude:+.2f})"
+                else:
+                    action = "우선순위 하향 검토"
+                    rationale = f"뉴스 활동 감소 ({change_magnitude:+.2f})"
+                
+                # topic_name 키 존재 확인
+                topic_name = change.get('topic_name') or change.get('topic') or "unknown_topic"
+                
+                news_metrics = change.get('news_metrics', {})
                 recommendations.append({
-                    "type": "new_issue_review",
-                    "topic_name": new_issue['keyword'],
-                    "suggested_action": "신규 중대성 이슈 검토",
-                    "rationale": f"뉴스에서 {new_issue['frequency']}회 언급, 이슈 점수 {new_issue['issue_score']:.2f}",
-                    "confidence": new_issue['confidence'],
+                    "type": rec_type,
+                    "topic_name": topic_name,
+                    "current_priority": change.get('previous_priority', 0),
+                    "suggested_action": action,
+                    "rationale": rationale,
+                    "confidence": change.get('confidence', 0.5),
                     "news_evidence": {
-                        "frequency": new_issue['frequency'],
-                        "related_articles": new_issue['related_articles_count'],
-                        "sample_articles": new_issue.get('sample_articles', [])[:2]
+                        "total_articles": news_metrics.get('total_articles', 0),
+                        "relevant_articles": news_metrics.get('relevant_articles', 0),
+                        "avg_sentiment": news_metrics.get('avg_sentiment', 'neutral')
                     }
                 })
+            except Exception as e:
+                self.logger.error(f"❌ high_change_topics 처리 중 예외: {str(e)}")
+                self.logger.error(f"❌ change 내용: {change}")
+                continue
+        
+        # 2. 신규 이슈 추천 (비활성화)
+        # 신규 이슈 발견 기능 비활성화로 이 부분은 생략
         
         # 3. 전체 트렌드 기반 추천
         overall_trend = evolution_analysis['overall_trend']
@@ -376,16 +416,24 @@ class MaterialityAnalysisService:
                 suggested_direction = "현재 수준 유지"
                 suggested_change = 0
             
-            suggestions.append({
-                "topic_name": change['topic_name'],
-                "current_priority": current_priority,
-                "suggested_direction": suggested_direction,
-                "suggested_change": suggested_change,
-                "rationale": f"뉴스 분석 점수 변화: {change_magnitude:+.2f}",
-                "confidence": change['confidence'],
-                "change_type": change['change_type'],
-                "supporting_evidence": change['reasons']
-            })
+            try:
+                # topic_name 키 존재 확인
+                topic_name = change.get('topic_name') or change.get('topic') or "unknown_topic"
+                
+                suggestions.append({
+                    "topic_name": topic_name,
+                    "current_priority": current_priority,
+                    "suggested_direction": suggested_direction,
+                    "suggested_change": suggested_change,
+                    "rationale": f"뉴스 분석 점수 변화: {change_magnitude:+.2f}",
+                    "confidence": change.get('confidence', 0.5),
+                    "change_type": change.get('change_type', 'unknown'),
+                    "supporting_evidence": change.get('reasons', [])
+                })
+            except Exception as e:
+                self.logger.error(f"❌ change 처리 중 예외: {str(e)}")
+                self.logger.error(f"❌ change 내용: {change}")
+                continue
         
         return suggestions
     
@@ -442,19 +490,23 @@ class MaterialityAnalysisService:
                 "description": f"{len(high_priority_items)}개 항목에 대한 즉시 검토 필요",
                 "timeline": "1주 이내",
                 "responsible": "중대성 평가 담당팀",
-                "items": [item['topic_name'] for item in high_priority_items]
+                "items": [item.get('topic_name', 'unknown_topic') for item in high_priority_items]
             })
         
-        # 2. 신규 이슈 검토
-        new_issues_count = len(evolution_analysis['new_issues'])
-        if new_issues_count > 0:
+        # 2. 기존 토픽 변화 분석
+        topic_changes_count = len([
+            change for change in evolution_analysis.get('topic_changes', [])
+            if abs(change.get('change_magnitude', 0)) > self.analysis_params['significance_threshold']
+        ])
+        
+        if topic_changes_count > 0:
             action_items.append({
                 "priority": "medium",
-                "action": "신규 이슈 검토 및 평가",
-                "description": f"{new_issues_count}개 신규 이슈에 대한 중대성 평가 필요성 검토",
-                "timeline": "2주 이내",
+                "action": "토픽별 변화 분석 검토",
+                "description": f"{topic_changes_count}개 토픽에서 중요한 변화 감지됨",
+                "timeline": "2주 이내", 
                 "responsible": "ESG 팀, 사업부 담당자",
-                "items": [issue['keyword'] for issue in evolution_analysis['new_issues']]
+                "details": "각 토픽별 뉴스 언급도 변화와 감정 분석 결과를 종합적으로 검토"
             })
         
         # 3. 전체 업데이트 필요성

@@ -66,13 +66,13 @@ POST /api/v1/materiality/companies/{company_name}/analyze
 ```
 
 **Query Parameters:**
-- `year`: 분석 연도 (기본값: 2024)
-- `include_news`: 뉴스 분석 포함 여부 (기본값: true)
+- `year`: 분석 연도 (기본값: 2025)
+- `include_news`: 뉴스 분석 포함 여부 (기본값: true)  
 - `max_articles`: 분석할 최대 뉴스 수 (기본값: 100)
 
 **예시:**
 ```bash
-curl -X POST "http://localhost:8000/api/v1/materiality/companies/두산퓨얼셀/analyze?year=2024&include_news=true&max_articles=100"
+curl -X POST "http://localhost:8000/api/v1/materiality/companies/두산퓨얼셀/analyze?year=2025&include_news=true&max_articles=100"
 ```
 
 #### 2. 회사별 중대성 평가 비교
@@ -88,13 +88,13 @@ POST /api/v1/materiality/industries/{industry}/analyze
 ```
 
 **Query Parameters:**
-- `year`: 분석 연도 (기본값: 2024)
+- `year`: 분석 연도 (기본값: 2025)
 - `max_articles`: 분석할 최대 뉴스 수 (기본값: 100)
 - `include_sasb_mapping`: SASB 매핑 포함 여부 (기본값: true)
 
 **예시:**
 ```bash
-curl -X POST "http://localhost:8000/api/v1/materiality/industries/신재생에너지/analyze?year=2024&max_articles=100"
+curl -X POST "http://localhost:8000/api/v1/materiality/industries/신재생에너지/analyze?year=2025&max_articles=100"
 ```
 
 #### 2. 지원 산업 목록 조회
@@ -180,13 +180,13 @@ LOG_LEVEL=INFO
 {
   "analysis_metadata": {
     "company_name": "두산퓨얼셀",
-    "analysis_year": 2024,
-    "analysis_date": "2024-01-15T10:30:00Z",
+    "analysis_year": 2025,
+    "analysis_date": "2025-01-15T10:30:00Z",
     "disclaimer": "뉴스 분석 결과는 참고용입니다."
   },
   "news_analysis": {
     "total_articles": 85,
-    "analysis_period": "2024년",
+    "analysis_period": "2024년 기준 2025년 전망",
     "key_changes": [
       {
         "topic": "기후변화 대응",
@@ -206,8 +206,8 @@ LOG_LEVEL=INFO
 {
   "analysis_metadata": {
     "industry": "신재생에너지",
-    "analysis_year": 2024,
-    "analysis_date": "2024-01-15T10:30:00Z",
+    "analysis_year": 2025,
+    "analysis_date": "2025-01-15T10:30:00Z",
     "disclaimer": "산업 분석 결과는 참고용입니다."
   },
   "industry_info": {

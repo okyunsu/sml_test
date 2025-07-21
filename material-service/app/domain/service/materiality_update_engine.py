@@ -335,75 +335,10 @@ class MaterialityUpdateEngine:
         existing_topics: List[MaterialityTopic],
         company_name: str
     ) -> List[Dict[str, Any]]:
-        """신규 이슈 발굴"""
-        new_issues = []
-        
-        # 기존 토픽명 리스트
-        existing_topic_names = [topic.topic_name for topic in existing_topics]
-        
-        # 1. 뉴스에서 키워드 추출
-        all_keywords = defaultdict(int)
-        for article in news_articles:
-            title = article.get('title', '')
-            content = article.get('content', '') or article.get('summary', '')
-            
-            # 키워드 추출 및 빈도 계산
-            keywords = self.news_engine._extract_keywords_from_text(title + ' ' + content)
-            for keyword in keywords:
-                if len(keyword) > 2:  # 최소 3글자 이상
-                    all_keywords[keyword] += 1
-        
-        # 2. 빈도 기반 상위 키워드 선별
-        top_keywords = sorted(all_keywords.items(), key=lambda x: x[1], reverse=True)[:20]
-        
-        # 3. 기존 토픽과 중복되지 않는 키워드 필터링
-        potential_new_issues = []
-        for keyword, frequency in top_keywords:
-            # 기존 토픽과 유사성 체크
-            is_duplicate = any(
-                keyword.lower() in topic_name.lower() or topic_name.lower() in keyword.lower()
-                for topic_name in existing_topic_names
-            )
-            
-            if not is_duplicate and frequency >= 3:  # 최소 3번 이상 언급
-                potential_new_issues.append((keyword, frequency))
-        
-        # 4. 잠재적 신규 이슈 분석
-        for keyword, frequency in potential_new_issues[:10]:  # 상위 10개만 분석
-            # 해당 키워드 관련 뉴스 분석
-            related_articles = [
-                article for article in news_articles
-                if keyword.lower() in (article.get('title', '') + ' ' + 
-                                     (article.get('content', '') or article.get('summary', ''))).lower()
-            ]
-            
-            if len(related_articles) >= 3:  # 최소 3개 이상 관련 기사
-                # 신규 이슈 점수 계산
-                issue_score = self._calculate_new_issue_score(related_articles, keyword, frequency)
-                
-                if issue_score > self.thresholds['new_issue_score']:
-                    # SASB 매핑 시도
-                    sasb_mapping = self.mapping_service.get_sasb_code_by_topic(keyword)
-                    
-                    new_issue = {
-                        'keyword': keyword,
-                        'frequency': frequency,
-                        'issue_score': issue_score,
-                        'related_articles_count': len(related_articles),
-                        'sasb_mapping': sasb_mapping,
-                        'confidence': min(issue_score / 2.0, 1.0),
-                        'sample_articles': related_articles[:3],  # 샘플 기사 3개
-                        'discovery_rationale': self._generate_discovery_rationale(
-                            keyword, frequency, issue_score, related_articles
-                        )
-                    }
-                    
-                    new_issues.append(new_issue)
-        
-        # 5. 점수 기준 정렬
-        new_issues.sort(key=lambda x: x['issue_score'], reverse=True)
-        
-        return new_issues[:5]  # 최대 5개 신규 이슈
+        """신규 이슈 발굴 - 현재 비활성화됨"""
+        # 신규 이슈 발견 기능을 비활성화하고 기존 토픽 분석에 집중
+        self.logger.info("🚫 신규 이슈 발견 기능 비활성화 - 기존 토픽 중심 분석에 집중")
+        return []
     
     def _calculate_new_issue_score(
         self,

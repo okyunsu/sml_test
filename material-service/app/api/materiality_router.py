@@ -37,7 +37,7 @@ async def get_supported_companies():
             company_info.append({
                 "company_name": company,
                 "has_assessment": bool(file_info),
-                "available_years": [2024] if file_info else []
+                "available_years": [2024, 2025] if file_info else []
             })
         
         return {
@@ -93,7 +93,7 @@ async def get_company_assessment(company_name: str, year: int):
 @materiality_router.post("/companies/{company_name}/analyze")
 async def analyze_company_materiality(
     company_name: str,
-    year: int = Query(default=2024, description="분석 연도"),
+    year: int = Query(default=2025, description="분석 연도"),
     include_news: bool = Query(default=True, description="뉴스 분석 포함 여부"),
     max_articles: int = Query(default=100, description="분석할 최대 뉴스 수")
 ):
@@ -120,8 +120,8 @@ async def analyze_company_materiality(
                 detail=f"지원하지 않는 기업입니다. 지원 기업: {', '.join(supported_companies)}"
             )
         
-        # 기준 평가 로드
-        base_assessment = file_service.load_company_assessment(company_name, year - 1)
+        # 기준 평가 로드 (2024년 SR 보고서 데이터)
+        base_assessment = file_service.load_company_assessment(company_name, 2024)
         
         # 중대성 평가 분석 수행
         analysis_result = await analysis_service.analyze_materiality_changes(
@@ -137,7 +137,9 @@ async def analyze_company_materiality(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
         logger.error(f"회사별 중대성 분석 실패: {str(e)}")
+        logger.error(f"스택트레이스: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"회사별 중대성 분석 중 오류가 발생했습니다: {str(e)}"
@@ -240,7 +242,7 @@ async def compare_company_assessments(
 @materiality_router.post("/industries/{industry}/analyze")
 async def analyze_industry_materiality(
     industry: str,
-    year: int = Query(default=2024, description="분석 연도"),
+    year: int = Query(default=2025, description="분석 연도"),
     max_articles: int = Query(default=200, description="분석할 최대 뉴스 수"),
     include_sasb_mapping: bool = Query(default=True, description="SASB 매핑 포함 여부")
 ):
