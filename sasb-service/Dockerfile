@@ -43,8 +43,12 @@ WORKDIR /home/appuser/app
 # Build stage에서 설치된 Python 패키지들만 복사
 COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
-# 애플리케이션 코드만 복사 (data 폴더 제외 - 필요시에만)
+# 애플리케이션 코드 및 공통 모듈 복사
 COPY --chown=appuser:appuser ./app ./app
+COPY --chown=appuser:appuser ../shared ./shared
+
+# 파인튜닝된 모델 복사 (Git에서 관리)
+COPY --chown=appuser:appuser ../shared/models ./shared/models
 
 # 포트 노출
 EXPOSE 8003

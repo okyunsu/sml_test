@@ -103,8 +103,8 @@ class MLServiceSettings(BaseServiceSettings):
     """ML 기능이 있는 서비스를 위한 확장 설정"""
     
     # === ML 모델 설정 ===
-    MODEL_BASE_PATH: Optional[str] = Field(default="/app/models", description="모델 기본 경로")
-    MODEL_NAME: Optional[str] = Field(default=None, description="사용할 모델 이름")
+    MODEL_BASE_PATH: Optional[str] = Field(default="/app/shared/models", description="모델 기본 경로")
+    MODEL_NAME: Optional[str] = Field(default="test222", description="사용할 모델 이름")
     DISABLE_ML_MODEL: bool = Field(default=False, description="ML 모델 비활성화")
     
     # === Celery 설정 ===

@@ -5,7 +5,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# 애플리케이션 코드 및 공통 모듈 복사
+COPY ./app ./app
+COPY ../shared ./shared
 
 EXPOSE 8080
 

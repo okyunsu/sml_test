@@ -113,7 +113,11 @@ cython_debug/
 # VS Code
 .vscode/
 
-# Machine Learning Models
+# NewsTun Service (전체 제외, 모델만 별도 관리)
+newstun-service/
+!shared/models/
+
+# Machine Learning Models (일반적인 모델 파일들)
 models/
 *.safetensors
 *.bin
