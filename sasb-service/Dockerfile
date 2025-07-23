@@ -45,10 +45,7 @@ COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
 # 애플리케이션 코드 및 공통 모듈 복사
 COPY --chown=appuser:appuser ./app ./app
-COPY --chown=appuser:appuser ../shared ./shared
-
-# 파인튜닝된 모델 복사 (Git에서 관리)
-COPY --chown=appuser:appuser ../shared/models ./shared/models
+COPY --chown=appuser:appuser ./shared ./shared
 
 # 포트 노출
 EXPOSE 8003

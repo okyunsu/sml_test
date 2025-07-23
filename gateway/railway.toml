@@ -5,4 +5,7 @@ healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 
 [build]
-buildCommand = "echo 'Building Gateway Service...'" 
+buildCommand = "echo 'Building Gateway Service...'"
+
+[env]
+DISABLE_ML_MODEL = "true" 
