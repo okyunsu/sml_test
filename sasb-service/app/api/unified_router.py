@@ -6,7 +6,7 @@ import os
 import sys
 
 # ✅ Python Path 설정 (shared 모듈 접근용)
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
 # ✅ 공통 감정 변환 모듈 사용
 from shared.services.sentiment_helper import SentimentConverter

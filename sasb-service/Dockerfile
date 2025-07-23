@@ -24,7 +24,7 @@ FROM python:3.11-slim
 # 런타임 환경 최적화
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
+    PYTHONPATH=/home/appuser/app \
     PATH=/home/appuser/.local/bin:$PATH
 
 WORKDIR /app

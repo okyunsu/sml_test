@@ -2,8 +2,8 @@ import os
 import sys
 from typing import Optional
 
-# ✅ Python Path 설정 (shared 모듈 접근용)
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
+# ✅ Python Path 설정 (shared 모듈 접근용)  
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
 # ✅ 공통 설정 베이스 사용
 from shared.config.base_settings import BaseServiceSettings

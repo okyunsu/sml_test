@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 
 # ✅ Python Path 설정 (shared 모듈 접근용)
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # ✅ 공통 모듈 사용
 from shared.core.app_factory import create_fastapi_app

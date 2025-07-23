@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# PORT 환경변수가 설정되지 않았으면 기본값 사용
-export PORT=${PORT:-8001}
+# PORT 환경변수가 설정되지 않았으면 기본값 사용 (Dockerfile EXPOSE와 일치)
+export PORT=${PORT:-8004}
 
 echo "Starting Material Service on port $PORT..."
 

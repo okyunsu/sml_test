@@ -1,13 +1,13 @@
 [deploy]
 startCommand = "chmod +x start.sh && ./start.sh"
 healthcheckPath = "/health"
-healthcheckTimeout = 300
+healthcheckTimeout = 600
 restartPolicyType = "ON_FAILURE"
 
 [build]
 buildCommand = "echo 'Building SASB Service...'"
 
 [env]
-MODEL_BASE_PATH = "/app/shared/models"
+MODEL_BASE_PATH = "/home/appuser/app/shared/models"
 MODEL_NAME = "test222"
 DISABLE_ML_MODEL = "false" 

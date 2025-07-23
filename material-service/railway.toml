@@ -1,7 +1,7 @@
 [deploy]
 startCommand = "chmod +x start.sh && ./start.sh"
 healthcheckPath = "/health"
-healthcheckTimeout = 300
+healthcheckTimeout = 600
 restartPolicyType = "ON_FAILURE"
 
 [build]
