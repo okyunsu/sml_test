@@ -111,16 +111,14 @@ class AnalysisService:
             sampled_domain, sampled_issues, company_name, max_combinations
         )
         
-        # 3. 뉴스 검색 실행
-        all_news_items = await self._search_news_with_queries(search_queries)
+        # 3. 뉴스 검색 실행 (키워드 정보 포함)
+        all_news_items_with_keywords = await self._search_news_with_queries_tracked(search_queries)
         
-        # 4. 중복 제거 (공통 헬퍼 사용)
-        news_items_dicts = [self._convert_news_item_to_dict(item) for item in all_news_items]
-        unique_news_dicts = NewsSearchHelper.deduplicate_news_items(news_items_dicts)
-        unique_news_items = [self._convert_dict_to_news_item(item) for item in unique_news_dicts]
+        # 4. 중복 제거 (키워드 정보 유지)
+        unique_news_with_keywords = self._deduplicate_with_keyword_tracking(all_news_items_with_keywords)
         
-        # 5. 감정 분석
-        analyzed_articles = await self._analyze_sentiment_for_articles(unique_news_items)
+        # 5. 감정 분석 (키워드 정보 포함)
+        analyzed_articles = await self._analyze_sentiment_for_articles_with_keywords(unique_news_with_keywords)
         
         logging.info(f"🎯 조합 검색 분석 완료: {len(analyzed_articles)}개 기사 분석됨")
         return analyzed_articles
@@ -139,6 +137,122 @@ class AnalysisService:
         
         logging.info(f"총 {len(all_news_items)}개 뉴스 수집 완료")
         return all_news_items
+    
+    async def _search_news_with_queries_tracked(self, queries: List[str]) -> List[dict]:
+        """
+        쿼리 리스트로 뉴스 검색 실행 (키워드 정보 추적)
+        
+        Returns:
+            List[dict]: [{"news_item": NewsItem, "search_query": str, "keywords": List[str]}]
+        """
+        all_news_items_with_keywords = []
+        
+        for i, query in enumerate(queries):
+            try:
+                logging.info(f"🔍 검색 {i + 1}/{len(queries)}: '{query}'")
+                news_items = await self.naver_news_service.search_news(query, display=100)
+                
+                # 쿼리에서 키워드 추출 (공백으로 분리)
+                keywords = query.split()
+                
+                # 각 뉴스 아이템에 키워드 정보 추가
+                for news_item in news_items:
+                    news_with_keywords = {
+                        "news_item": news_item,
+                        "search_query": query,
+                        "keywords": keywords
+                    }
+                    all_news_items_with_keywords.append(news_with_keywords)
+                    
+            except Exception as e:
+                logging.error(f"'{query}'에 대한 조합 검색 중 오류 발생: {e}", exc_info=True)
+        
+        logging.info(f"🔍 총 {len(all_news_items_with_keywords)}개 뉴스 (키워드 정보 포함) 수집 완료")
+        return all_news_items_with_keywords
+    
+    def _deduplicate_with_keyword_tracking(self, news_with_keywords: List[dict]) -> List[dict]:
+        """
+        🎯 유사도 기반 키워드 정보를 유지하면서 중복 제거
+        
+        Args:
+            news_with_keywords: [{"news_item": NewsItem, "search_query": str, "keywords": List[str]}]
+        
+        Returns:
+            List[dict]: [{"news_item": NewsItem, "matched_keywords": List[str]}] (중복 제거됨)
+        """
+        unique_news_with_keywords = []
+        similarity_threshold = 0.6
+        
+        for current_item_data in news_with_keywords:
+            current_item = current_item_data["news_item"]
+            current_keywords = current_item_data["keywords"]
+            current_text = NewsSearchHelper._extract_article_text({
+                'title': current_item.title,
+                'description': current_item.description,
+                'content': getattr(current_item, 'content', '')
+            })
+            
+            # 기존 고유 기사들과 유사도 비교
+            found_similar = False
+            for unique_item_data in unique_news_with_keywords:
+                unique_item = unique_item_data["news_item"]
+                unique_text = NewsSearchHelper._extract_article_text({
+                    'title': unique_item.title,
+                    'description': unique_item.description,
+                    'content': getattr(unique_item, 'content', '')
+                })
+                
+                similarity = NewsSearchHelper._calculate_text_similarity(current_text, unique_text)
+                
+                if similarity >= similarity_threshold:
+                    # 유사한 기사 발견 -> 키워드 병합
+                    unique_item_data["matched_keywords"].extend(current_keywords)
+                    unique_item_data["matched_keywords"] = list(set(unique_item_data["matched_keywords"]))  # 중복 제거
+                    found_similar = True
+                    logging.debug(f"🎯 유사 기사 병합: 유사도 {similarity:.2f}")
+                    break
+            
+            if not found_similar:
+                # 새로운 고유 기사 추가
+                unique_news_with_keywords.append({
+                    "news_item": current_item,
+                    "matched_keywords": current_keywords.copy()
+                })
+        
+        logging.info(f"🎯 유사도 기반 중복 제거 완료: {len(news_with_keywords)}개 → {len(unique_news_with_keywords)}개 고유 기사 (키워드 정보 유지)")
+        return unique_news_with_keywords
+    
+    async def _analyze_sentiment_for_articles_with_keywords(self, news_with_keywords: List[dict]) -> List[AnalyzedNewsArticle]:
+        """
+        뉴스 기사들에 대한 감정 분석 수행 (키워드 정보 포함)
+        
+        Args:
+            news_with_keywords: [{"news_item": NewsItem, "matched_keywords": List[str]}]
+        
+        Returns:
+            List[AnalyzedNewsArticle]: matched_keywords 필드 포함
+        """
+        analyzed_articles = []
+        
+        for item_data in news_with_keywords:
+            news_item = item_data["news_item"]
+            matched_keywords = item_data["matched_keywords"]
+            
+            try:
+                sentiment_result = self.ml_inference_service.analyze_sentiment(news_item.title)
+                analyzed_article = AnalyzedNewsArticle(
+                    title=news_item.title,
+                    link=news_item.link,
+                    description=news_item.description,
+                    sentiment=SentimentResult(**sentiment_result),
+                    matched_keywords=matched_keywords  # 🎯 키워드 정보 포함!
+                )
+                analyzed_articles.append(analyzed_article)
+            except Exception as e:
+                logging.error(f"기사 분석 중 오류 발생 (키워드: {matched_keywords}): {e}", exc_info=True)
+        
+        logging.info(f"🎯 {len(analyzed_articles)}개 기사 감정 분석 완료 (키워드 정보 포함)")
+        return analyzed_articles
     
     async def _analyze_sentiment_for_articles(self, news_items: List[NewsItem]) -> List[AnalyzedNewsArticle]:
         """뉴스 기사들에 대한 감정 분석 수행"""

@@ -57,11 +57,15 @@ class SASBMaterialityMapping(BaseModel):
     
 class IssueChangeType(str, Enum):
     """이슈 변화 유형"""
-    EMERGING = "emerging"      # 부상 이슈
-    ONGOING = "ongoing"        # 지속 이슈
-    MATURING = "maturing"      # 성숙 이슈
-    DECLINING = "declining"    # 감소 이슈
-    NEW = "new"               # 신규 이슈
+    EMERGING = "emerging"             # 부상 이슈
+    ONGOING = "ongoing"               # 지속 이슈
+    MATURING = "maturing"             # 성숙 이슈
+    DECLINING = "declining"           # 감소 이슈
+    NEW = "new"                      # 신규 이슈
+    SIGNIFICANT_INCREASE = "significant_increase"  # 상당한 증가
+    MODERATE_INCREASE = "moderate_increase"        # 보통 증가
+    MODERATE_DECREASE = "moderate_decrease"        # 보통 감소
+    STABLE = "stable"                             # 안정적
 
 class MaterialityTrendAnalysis(BaseModel):
     """중대성 평가 트렌드 분석 결과"""

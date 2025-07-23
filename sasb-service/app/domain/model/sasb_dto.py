@@ -29,6 +29,7 @@ class AnalyzedNewsArticle(NewsItem):
     Represents a news article that has been analyzed for sentiment.
     """
     sentiment: SentimentResult
+    matched_keywords: Optional[List[str]] = Field(None, description="Keywords that matched this article")
 
 class NewsAnalysisResult(BaseModel):
     """

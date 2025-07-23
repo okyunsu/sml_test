@@ -84,18 +84,18 @@ class DualSearchHelper:
         existing_articles: List[Dict[str, Any]], 
         new_articles: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """기사 병합 및 중복 제거"""
+        """🎯 유사도 기반 기사 병합 및 중복 제거"""
+        from shared.services.news_search_helper import NewsSearchHelper
+        
         combined_articles = existing_articles + new_articles
-        seen_links: Set[str] = set()
-        unique_articles = []
         
-        for article in combined_articles:
-            link = article.get('link', '')
-            if link and link not in seen_links:
-                seen_links.add(link)
-                unique_articles.append(article)
+        # 유사도 기반 중복 제거 (60% 임계값)
+        unique_articles = NewsSearchHelper.deduplicate_news_by_similarity(
+            combined_articles, 
+            similarity_threshold=0.6
+        )
         
-        logger.info(f"중복 제거 완료: {len(combined_articles)}개 → {len(unique_articles)}개")
+        logger.info(f"🎯 유사도 기반 중복 제거 완료: {len(combined_articles)}개 → {len(unique_articles)}개")
         return unique_articles
     
     @staticmethod

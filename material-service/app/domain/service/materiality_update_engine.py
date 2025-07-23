@@ -169,8 +169,11 @@ class MaterialityUpdateEngine:
         previous_topics: List[MaterialityTopic],
         news_analysis_results: Dict[str, Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
-        """토픽별 변화 분석"""
+        """토픽별 변화 분석 (언급 수 기반 우선순위 적용)"""
         topic_changes = []
+        
+        # 1. 언급 수 기반 현재 순위 계산
+        mention_rankings = self._calculate_mention_rankings(previous_topics, news_analysis_results)
         
         for topic in previous_topics:
             topic_name = topic.topic_name
@@ -178,15 +181,20 @@ class MaterialityUpdateEngine:
             
             # 뉴스 분석 결과에서 해당 토픽의 현재 상태 확인
             current_analysis = news_analysis_results.get(topic_name, {})
+            current_mention_ranking = mention_rankings.get(topic_name, {})
             
             if not current_analysis:
                 # 뉴스에서 관련 내용을 찾지 못한 경우
                 change_analysis = {
                     'topic_name': topic_name,
                     'previous_priority': previous_priority,
+                    'current_priority': len(previous_topics),  # 최하위 순위로 설정
                     'current_score': 0.0,
+                    'mention_count': 0,
+                    'mention_ranking': len(previous_topics),
                     'change_type': IssueChangeType.DECLINING.value,
                     'change_magnitude': -1.0,
+                    'priority_shift': len(previous_topics) - previous_priority,
                     'trend_direction': 'declining',
                     'confidence': 0.3,
                     'reasons': ['뉴스에서 관련 내용 부족'],
@@ -197,14 +205,20 @@ class MaterialityUpdateEngine:
                     }
                 }
             else:
+                # 🎯 언급 수 기반 우선순위 계산
+                mention_count = current_analysis.get('relevant_news_count', 0)
+                current_priority = current_mention_ranking.get('rank', previous_priority)
+                priority_shift = current_priority - previous_priority
+                
                 # 뉴스 분석 결과 기반 변화 분석
                 current_score = current_analysis['comprehensive_score']
                 change_magnitude = self._calculate_change_magnitude(
                     previous_priority, current_score
                 )
                 
-                change_type = self._determine_change_type(
-                    previous_priority, current_score, change_magnitude
+                # 🎯 우선순위 변화와 언급 수를 고려한 변화 유형 결정
+                change_type = self._determine_change_type_with_priority(
+                    previous_priority, current_priority, mention_count, change_magnitude
                 )
                 
                 confidence = self._calculate_confidence_score(current_analysis)
@@ -212,25 +226,137 @@ class MaterialityUpdateEngine:
                 change_analysis = {
                     'topic_name': topic_name,
                     'previous_priority': previous_priority,
+                    'current_priority': current_priority,
                     'current_score': current_score,
+                    'mention_count': mention_count,
+                    'mention_ranking': current_priority,
+                    'priority_shift': priority_shift,
                     'change_type': change_type,
                     'change_magnitude': change_magnitude,
                     'trend_direction': current_analysis['trend_analysis']['trend_direction'],
                     'confidence': confidence,
-                    'reasons': self._generate_change_reasons(
-                        change_type, current_analysis, change_magnitude
+                    'reasons': self._generate_change_reasons_with_priority(
+                        change_type, current_analysis, change_magnitude, priority_shift, mention_count
                     ),
                     'news_metrics': {
                         'total_articles': current_analysis['total_news_count'],
                         'relevant_articles': current_analysis['relevant_news_count'],
                         'avg_sentiment': current_analysis['trend_analysis']['avg_sentiment']
                     },
-                    'detailed_analysis': current_analysis
+                    'detailed_analysis': current_analysis,
+                    'priority_analysis': {
+                        'previous_rank': previous_priority,
+                        'current_rank': current_priority,
+                        'rank_change': priority_shift,
+                        'mention_based_rank': current_priority,
+                        'rank_change_reason': self._explain_priority_shift(priority_shift, mention_count)
+                    }
                 }
             
             topic_changes.append(change_analysis)
         
         return topic_changes
+    
+    def _calculate_mention_rankings(
+        self,
+        topics: List[MaterialityTopic],
+        news_results: Dict[str, Dict[str, Any]]
+    ) -> Dict[str, Dict[str, Any]]:
+        """🎯 언급 수 기반 토픽 순위 계산"""
+        mention_counts = []
+        
+        # 각 토픽의 언급 수 수집
+        for topic in topics:
+            topic_name = topic.topic_name
+            analysis = news_results.get(topic_name, {})
+            mention_count = analysis.get('relevant_news_count', 0)
+            
+            mention_counts.append({
+                'topic_name': topic_name,
+                'mention_count': mention_count,
+                'previous_priority': topic.priority
+            })
+        
+        # 언급 수 기준으로 정렬 (내림차순)
+        mention_counts.sort(key=lambda x: x['mention_count'], reverse=True)
+        
+        # 순위 매기기
+        rankings = {}
+        for i, item in enumerate(mention_counts):
+            rankings[item['topic_name']] = {
+                'rank': i + 1,
+                'mention_count': item['mention_count'],
+                'previous_rank': item['previous_priority']
+            }
+        
+        self.logger.info(f"🎯 언급 수 기반 순위 계산 완료: {len(rankings)}개 토픽")
+        return rankings
+    
+    def _determine_change_type_with_priority(
+        self,
+        previous_priority: int,
+        current_priority: int,
+        mention_count: int,
+        change_magnitude: float
+    ) -> str:
+        """🎯 우선순위 변화를 고려한 변화 유형 결정"""
+        priority_shift = current_priority - previous_priority
+        
+        # 순위가 상승한 경우 (숫자가 작아짐)
+        if priority_shift < -1:  # 2단계 이상 상승
+            if mention_count >= 5:
+                return IssueChangeType.SIGNIFICANT_INCREASE.value
+            else:
+                return IssueChangeType.EMERGING.value
+        
+        # 순위가 하락한 경우 (숫자가 커짐)
+        elif priority_shift > 1:  # 2단계 이상 하락
+            if mention_count <= 2:
+                return IssueChangeType.DECLINING.value
+            else:
+                return IssueChangeType.MODERATE_DECREASE.value
+        
+        # 순위 변화가 적은 경우
+        else:
+            if change_magnitude > self.thresholds['significant_change']:
+                return IssueChangeType.MODERATE_INCREASE.value
+            elif change_magnitude < -self.thresholds['significant_change']:
+                return IssueChangeType.MODERATE_DECREASE.value
+            else:
+                return IssueChangeType.STABLE.value
+    
+    def _generate_change_reasons_with_priority(
+        self,
+        change_type: str,
+        analysis: Dict[str, Any],
+        change_magnitude: float,
+        priority_shift: int,
+        mention_count: int
+    ) -> List[str]:
+        """🎯 우선순위 변화를 포함한 변화 이유 생성"""
+        reasons = []
+        
+        # 우선순위 변화 이유
+        if priority_shift < -1:
+            reasons.append(f"언급 수 증가로 {abs(priority_shift)}단계 순위 상승 (총 {mention_count}회 언급)")
+        elif priority_shift > 1:
+            reasons.append(f"언급 수 감소로 {priority_shift}단계 순위 하락 (총 {mention_count}회 언급)")
+        elif priority_shift == 0:
+            reasons.append(f"순위 유지 (총 {mention_count}회 언급)")
+        
+        # 기존 변화 이유 추가
+        reasons.extend(self._generate_change_reasons(change_type, analysis, change_magnitude))
+        
+        return reasons
+    
+    def _explain_priority_shift(self, priority_shift: int, mention_count: int) -> str:
+        """우선순위 변화 이유 설명"""
+        if priority_shift < -1:
+            return f"언급 빈도 증가 ({mention_count}회)로 인한 중요도 상승"
+        elif priority_shift > 1:
+            return f"언급 빈도 감소 ({mention_count}회)로 인한 중요도 하락"
+        else:
+            return f"언급 빈도 유지 ({mention_count}회)로 순위 안정"
     
     def _calculate_change_magnitude(
         self,

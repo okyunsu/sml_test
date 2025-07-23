@@ -108,6 +108,118 @@ class NewsSearchHelper:
         return unique_items
     
     @staticmethod
+    def deduplicate_news_by_similarity(
+        news_items: List[Dict[str, Any]], 
+        similarity_threshold: float = 0.6
+    ) -> List[Dict[str, Any]]:
+        """
+        🎯 내용 유사도 기반 뉴스 기사 중복 제거
+        
+        Args:
+            news_items: 뉴스 기사 리스트
+            similarity_threshold: 유사도 임계값 (0.0~1.0, 기본값: 0.6)
+            
+        Returns:
+            중복 제거된 뉴스 기사 리스트
+        """
+        if not news_items:
+            return []
+        
+        unique_items = []
+        
+        for current_item in news_items:
+            current_text = NewsSearchHelper._extract_article_text(current_item)
+            is_duplicate = False
+            
+            # 기존 고유 기사들과 유사도 비교
+            for unique_item in unique_items:
+                unique_text = NewsSearchHelper._extract_article_text(unique_item)
+                similarity = NewsSearchHelper._calculate_text_similarity(current_text, unique_text)
+                
+                if similarity >= similarity_threshold:
+                    is_duplicate = True
+                    logger.debug(f"중복 기사 발견: 유사도 {similarity:.2f} >= {similarity_threshold}")
+                    break
+            
+            if not is_duplicate:
+                unique_items.append(current_item)
+        
+        logger.info(f"🎯 유사도 기반 중복 제거 완료: {len(news_items)}개 → {len(unique_items)}개 (임계값: {similarity_threshold})")
+        return unique_items
+    
+    @staticmethod
+    def _extract_article_text(article: Dict[str, Any]) -> str:
+        """기사에서 비교용 텍스트 추출"""
+        title = article.get('title', '').strip()
+        description = article.get('description', '').strip()
+        content = article.get('content', '').strip()
+        
+        # 제목은 가중치를 높여서 2번 포함
+        text = f"{title} {title} {description} {content}"
+        return NewsSearchHelper._clean_text(text)
+    
+    @staticmethod
+    def _clean_text(text: str) -> str:
+        """텍스트 정제 (HTML 태그, 특수문자 제거)"""
+        import re
+        
+        # HTML 태그 제거
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # 특수 문자 제거 (한글, 영문, 숫자, 공백만 유지)
+        text = re.sub(r'[^\w\s가-힣]', ' ', text)
+        
+        # 여러 공백을 단일 공백으로 변환
+        text = re.sub(r'\s+', ' ', text)
+        
+        return text.strip().lower()
+    
+    @staticmethod
+    def _calculate_text_similarity(text1: str, text2: str) -> float:
+        """
+        🎯 텍스트 유사도 계산 (Jaccard + 토큰 매칭 조합)
+        
+        Args:
+            text1: 첫 번째 텍스트
+            text2: 두 번째 텍스트
+            
+        Returns:
+            유사도 점수 (0.0~1.0)
+        """
+        if not text1 or not text2:
+            return 0.0
+        
+        if text1 == text2:
+            return 1.0
+        
+        # 토큰 분할
+        tokens1 = set(text1.split())
+        tokens2 = set(text2.split())
+        
+        if not tokens1 or not tokens2:
+            return 0.0
+        
+        # 1. Jaccard 유사도 (집합 기반)
+        intersection = len(tokens1.intersection(tokens2))
+        union = len(tokens1.union(tokens2))
+        jaccard_similarity = intersection / union if union > 0 else 0.0
+        
+        # 2. 공통 토큰 비율 (길이 차이 고려)
+        min_tokens = min(len(tokens1), len(tokens2))
+        max_tokens = max(len(tokens1), len(tokens2))
+        common_ratio = intersection / min_tokens if min_tokens > 0 else 0.0
+        length_penalty = min_tokens / max_tokens if max_tokens > 0 else 0.0
+        
+        # 3. 조합 점수 (Jaccard + 공통비율 + 길이패널티)
+        final_similarity = (
+            jaccard_similarity * 0.5 +           # Jaccard 가중치 50%
+            common_ratio * 0.4 +                 # 공통 토큰 비율 40%
+            length_penalty * 0.1                 # 길이 유사성 10%
+        )
+        
+        return round(final_similarity, 3)
+    
+    @staticmethod
     def create_search_query_combinations(
         keywords_groups: List[List[str]],
         max_combinations: int = 10,
