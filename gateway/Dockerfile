@@ -9,6 +9,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./app ./app
 COPY ./shared ./shared
 
+# 시작 스크립트 복사
+COPY start.sh ./
+RUN chmod +x start.sh
+
 EXPOSE 8080
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"] 
+CMD ["./start.sh"] 

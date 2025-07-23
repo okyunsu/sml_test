@@ -47,6 +47,10 @@ COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 COPY --chown=appuser:appuser ./app ./app
 COPY --chown=appuser:appuser ./shared ./shared
 
+# 시작 스크립트 복사
+COPY --chown=appuser:appuser start.sh ./
+RUN chmod +x start.sh
+
 # 포트 노출
 EXPOSE 8003
 
@@ -55,4 +59,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8003/health || exit 1
 
 # 애플리케이션 실행
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"] 
+CMD ["./start.sh"] 

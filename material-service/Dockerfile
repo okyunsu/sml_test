@@ -15,6 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./app ./app
 COPY ./shared ./shared
 
+# 시작 스크립트 복사
+COPY start.sh ./
+RUN chmod +x start.sh
+
 # 업로드 디렉토리 생성
 RUN mkdir -p uploads
 
@@ -25,4 +29,4 @@ RUN ls -la /app/app/materiality/ || echo "Warning: materiality directory not fou
 EXPOSE 8004
 
 # 애플리케이션 실행
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004"] 
+CMD ["./start.sh"] 
