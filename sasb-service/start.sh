@@ -137,4 +137,38 @@ fi
 
 echo "🚀 Starting SASB Service on port $PORT..."
 echo "💡 Using debug log level for detailed output"
+
+echo ""
+echo "🔄 Starting Celery Worker in background..."
+# Celery Worker를 백그라운드로 실행 (Railway 환경 최적화)
+nohup python -m celery -A app.workers.celery_app worker --loglevel=info > /tmp/celery_worker.log 2>&1 &
+WORKER_PID=$!
+echo "📋 Celery Worker PID: $WORKER_PID"
+
+# 잠시 대기 (Worker 초기화 시간)
+sleep 3
+
+echo ""
+echo "🔄 Starting Celery Beat in background..."
+# Celery Beat (스케줄러)를 백그라운드로 실행
+nohup python -m celery -A app.workers.celery_app beat --loglevel=info > /tmp/celery_beat.log 2>&1 &
+BEAT_PID=$!
+echo "📋 Celery Beat PID: $BEAT_PID"
+
+# 잠시 대기 (Beat 초기화 시간)
+sleep 3
+
+echo ""
+echo "✅ Celery Worker & Beat started successfully"
+echo "📄 Worker log: /tmp/celery_worker.log"
+echo "📄 Beat log: /tmp/celery_beat.log"
+echo "📋 Worker PID: $WORKER_PID"
+echo "📋 Beat PID: $BEAT_PID"
+
+# PID 파일 저장 (프로세스 관리용)
+echo $WORKER_PID > /tmp/celery_worker.pid
+echo $BEAT_PID > /tmp/celery_beat.pid
+
+echo ""
+echo "🌐 Starting FastAPI Web Server..."
 uvicorn app.main:app --host 0.0.0.0 --port "$PORT" --log-level debug || echo "❗ Uvicorn crashed with error" 
