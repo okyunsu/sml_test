@@ -11,8 +11,8 @@ buildCommand = "echo 'Building Material Service...'"
 DISABLE_ML_MODEL = "true"
 
 # Redis 설정 (Railway 자동 환경변수 사용)
-# Railway는 Redis Database 추가 시 자동으로 REDIS_PRIVATE_URL 주입
-REDIS_URL = "${{REDIS_PRIVATE_URL}}"
+# Railway는 Redis Database 추가 시 자동으로 REDIS_URL 주입
+REDIS_URL = "${{REDIS_URL}}"
 REDIS_DB = "0"
 
 # SASB Service 직접 연동 (실제 배포된 SASB Service URL 사용)

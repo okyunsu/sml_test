@@ -1,19 +1,23 @@
 #!/bin/bash
 set -e
 
-echo "=== SASB Service Debug Start ==="
-echo "💡 Current PATH: $PATH"
-echo "💡 Checking uvicorn path:"
+echo "🚨🚨🚨 === SASB SERVICE RAILWAY DEBUG === 🚨🚨🚨"
+
+echo "🔍 STEP 1: Railway Environment Variables Check"
+echo "ALL environment variables with RAILWAY/REDIS:"
+env | grep -E "(RAILWAY|REDIS)" | sort || echo "❌ NO RAILWAY/REDIS environment variables found!"
+
+echo ""
+echo "🔍 STEP 2: Specific Redis Variables"
+echo "REDIS_PRIVATE_URL: '${REDIS_PRIVATE_URL:-NOT_SET}'"
+echo "REDIS_URL: '${REDIS_URL:-NOT_SET}'" 
+echo "CELERY_BROKER_URL: '${CELERY_BROKER_URL:-NOT_SET}'"
+echo "CELERY_RESULT_BACKEND: '${CELERY_RESULT_BACKEND:-NOT_SET}'"
+
+echo ""
+echo "🔍 STEP 3: PATH and uvicorn check"
+echo "Current PATH: $PATH"
 which uvicorn || echo "❌ uvicorn not found in PATH"
-
-echo "💡 Checking ALL Railway environment variables:"
-env | grep -E "(RAILWAY|REDIS)" | sort || echo "No RAILWAY/REDIS vars found"
-
-echo "💡 Specific Redis variables:"
-echo "   REDIS_PRIVATE_URL: '$REDIS_PRIVATE_URL'"
-echo "   REDIS_URL: '$REDIS_URL'" 
-echo "   CELERY_BROKER_URL: '$CELERY_BROKER_URL'"
-echo "   CELERY_RESULT_BACKEND: '$CELERY_RESULT_BACKEND'"
 
 echo "💡 Checking python and pip packages:"
 python -c "import uvicorn; print('✅ uvicorn import OK')" || echo "❌ uvicorn import failed"
