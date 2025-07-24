@@ -24,7 +24,8 @@ def create_fastapi_app(
     redoc_url: str = "/redoc",
     exception_handlers: Optional[Dict[Any, Callable]] = None,
     enable_cors: bool = True,
-    cors_origins: list = ["*"]
+    cors_origins: Optional[list] = None,
+    server_urls: Optional[list] = None
 ) -> FastAPI:
     """
     FastAPI 앱을 생성하고 공통 설정을 적용합니다.
@@ -43,22 +44,45 @@ def create_fastapi_app(
         설정된 FastAPI 앱 인스턴스
     """
     
+    # Railway 환경에서 서버 URL 자동 감지
+    import os
+    if server_urls is None:
+        railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
+        if railway_domain:
+            server_urls = [
+                {"url": f"https://{railway_domain}", "description": "Railway Production"}
+            ]
+        else:
+            # 로컬 개발 환경
+            server_urls = [
+                {"url": "http://localhost:8000", "description": "Local Development"}
+            ]
+    
     app = FastAPI(
         title=title,
         description=description,
         version=version,
         docs_url=docs_url,
-        redoc_url=redoc_url
+        redoc_url=redoc_url,
+        servers=server_urls
     )
     
-    # CORS 미들웨어 추가
+    # CORS 미들웨어 추가 (Railway 환경 최적화)
     if enable_cors:
+        # Railway와 로컬 개발 환경을 모두 지원하는 CORS 설정
+        if cors_origins is None:
+            cors_origins = [
+                "*"  # 모든 도메인 허용 (Railway 환경에서 안전함)
+            ]
+        
         app.add_middleware(
             CORSMiddleware,
             allow_origins=cors_origins,
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_credentials=False,  # "*" origin과 함께 사용하려면 False여야 함
+            allow_methods=["*"],  # 모든 메서드 허용
+            allow_headers=["*"],  # 모든 헤더 허용
+            expose_headers=["*"],
+            max_age=86400,  # 24시간 preflight 캐시
         )
     
     # 예외 핸들러 등록
