@@ -60,5 +60,5 @@ RUN ls -la /home/appuser/app/shared || echo "❗ Warning: shared directory not f
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8003/health || exit 1
 
-# start.sh 실행  
-CMD ["bash", "start.sh"] 
+# start.sh 실행 (절대 경로)  
+CMD ["/bin/bash", "/home/appuser/app/start.sh"] 

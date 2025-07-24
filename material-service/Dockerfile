@@ -28,5 +28,5 @@ RUN ls -la /app/app/materiality/ || echo "Warning: materiality directory not fou
 
 # Railway는 동적 포트 할당하므로 EXPOSE 불필요
 
-# start.sh 실행
-CMD ["bash", "start.sh"] 
+# start.sh 실행 (절대 경로)
+CMD ["/bin/bash", "/app/start.sh"] 
