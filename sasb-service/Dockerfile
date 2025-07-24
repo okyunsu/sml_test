@@ -57,5 +57,5 @@ RUN chmod +x start.sh
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8003/health || exit 1
 
-# 애플리케이션 실행
-CMD ["./start.sh"] 
+# 최소 테스트 실행
+CMD ["python", "-c", "print('=== SASB Container Started ==='); import os; print('PWD:', os.getcwd()); print('User:', os.getenv('USER', 'unknown')); print('Files:'); [print(f) for f in os.listdir('.')]; import time; time.sleep(30)"] 

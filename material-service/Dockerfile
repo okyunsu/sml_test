@@ -27,5 +27,5 @@ RUN ls -la /app/app/materiality/ || echo "Warning: materiality directory not fou
 
 # Railway는 동적 포트 할당하므로 EXPOSE 불필요
 
-# start.sh 실행
-CMD ["bash", "start.sh"] 
+# 최소 테스트 실행
+CMD ["python", "-c", "print('=== Material Container Started ==='); import os; print('PWD:', os.getcwd()); print('Files:'); [print(f) for f in os.listdir('.')]; import time; time.sleep(30)"] 
