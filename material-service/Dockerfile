@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# 강제 캐시 무효화 (Railway 빌드 캐시 무시)
+COPY .dummyfile .dummyfile
+
 # Python 의존성 설치
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
