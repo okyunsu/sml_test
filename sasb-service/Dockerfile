@@ -51,8 +51,7 @@ COPY --chown=appuser:appuser ./shared ./shared
 COPY --chown=appuser:appuser start.sh ./
 RUN chmod +x start.sh
 
-# 포트 노출
-EXPOSE 8003
+# Railway는 동적 포트 할당하므로 EXPOSE 불필요
 
 # 헬스체크 (더 효율적으로)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

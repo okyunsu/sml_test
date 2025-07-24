@@ -15,8 +15,9 @@ DISABLE_ML_MODEL = "true"
 REDIS_URL = "${{REDIS_PRIVATE_URL}}"
 REDIS_DB = "0"
 
-# SASB Service 직접 연동 (Gateway 없이)
-SASB_SERVICE_URL = "https://sasb-service-production.up.railway.app"
+# SASB Service 직접 연동 (실제 배포된 SASB Service URL 사용)
+# 배포 후 SASB Service URL로 업데이트 필요
+SASB_SERVICE_URL = "https://sasb-service.up.railway.app"
 
 # 서비스 설정
 PYTHONPATH = "/app"

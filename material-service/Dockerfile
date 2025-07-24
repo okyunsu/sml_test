@@ -25,8 +25,7 @@ RUN mkdir -p uploads
 # materiality 파일들 명시적 복사 확인
 RUN ls -la /app/app/materiality/ || echo "Warning: materiality directory not found"
 
-# 포트 노출
-EXPOSE 8004
+# Railway는 동적 포트 할당하므로 EXPOSE 불필요
 
 # 애플리케이션 실행
 CMD ["./start.sh"] 

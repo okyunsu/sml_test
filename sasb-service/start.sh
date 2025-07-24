@@ -1,10 +1,12 @@
 #!/bin/bash
 set -e
 
-# PORT 환경변수가 설정되지 않았으면 기본값 사용
-export PORT=${PORT:-8003}
+# Railway에서 PORT 환경변수가 자동 설정됨. 없으면 종료
+if [ -z "$PORT" ]; then
+  echo "❌ Error: PORT environment variable is not set."
+  exit 1
+fi
 
-echo "Starting SASB Service on port $PORT..."
+echo "🚀 Starting SASB Service on port $PORT..."
 
-# Uvicorn 시작
 exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT" 
