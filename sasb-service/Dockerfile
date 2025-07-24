@@ -44,6 +44,9 @@ RUN useradd --create-home --shell /bin/bash appuser
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
+# 강제 캐시 무효화 (shared 디렉토리용)
+COPY .dummyfile-shared /home/appuser/app/.dummyfile-shared
+
 # 애플리케이션 코드 및 공통 모듈 복사 (ROOT 권한으로)
 COPY ./app /home/appuser/app/app
 COPY ./shared /home/appuser/app/shared

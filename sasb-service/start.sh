@@ -15,9 +15,26 @@ echo "CELERY_BROKER_URL: '${CELERY_BROKER_URL:-NOT_SET}'"
 echo "CELERY_RESULT_BACKEND: '${CELERY_RESULT_BACKEND:-NOT_SET}'"
 
 echo ""
-echo "🔍 STEP 2.5: Railway.toml Variable Reference Test"
-echo "Railway REDIS_URL variable exists in Variables tab but not injected"
-echo "Need to set up Variable Reference: Redis Service → SASB Service"
+echo "🔍 STEP 2.5: Redis Factory Code Verification"
+echo "Checking if redis.from_url() is actually being used..."
+python -c "
+import sys
+sys.path.insert(0, '/home/appuser/app')
+with open('/home/appuser/app/shared/core/redis_factory.py', 'r') as f:
+    content = f.read()
+    if 'redis.from_url(' in content:
+        print('✅ redis.from_url() found in code')
+    else:
+        print('❌ redis.from_url() NOT found - still using old code!')
+    
+    if 'redis.Redis(' in content:
+        print('⚠️  redis.Redis() still found - mixed code')
+    
+    print('Key lines:')
+    for i, line in enumerate(content.split('\n'), 1):
+        if 'client = redis.' in line:
+            print(f'  Line {i}: {line.strip()}')
+" || echo "❌ Could not read redis_factory.py"
 
 echo ""
 echo "🔍 STEP 3: PATH and uvicorn check"
