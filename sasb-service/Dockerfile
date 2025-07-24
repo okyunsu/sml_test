@@ -91,7 +91,48 @@ RUN echo 'import os' > /home/appuser/app/shared/core/redis_factory.py && \
     echo '            logger.error(f"❌ Redis 연결 실패: {str(e)}")' >> /home/appuser/app/shared/core/redis_factory.py && \
     echo '            raise' >> /home/appuser/app/shared/core/redis_factory.py
 COPY ./shared/core/__init__.py /home/appuser/app/shared/core/__init__.py
-COPY ./shared/core/app_factory.py /home/appuser/app/shared/core/app_factory.py
+# 🚨 app_factory.py 직접 생성 (캐시 완전 우회)
+RUN echo 'from typing import Dict, Any, Optional, Callable' > /home/appuser/app/shared/core/app_factory.py && \
+    echo 'from fastapi import FastAPI, HTTPException' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo 'from fastapi.middleware.cors import CORSMiddleware' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo 'from fastapi.responses import JSONResponse' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo 'import logging' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo 'import sys' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo 'logging.basicConfig(' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    level=logging.INFO,' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    handlers=[logging.StreamHandler(sys.stdout)]' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo ')' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo 'def create_fastapi_app(' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    title: str = "API Service",' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    description: str = "마이크로서비스 API",' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    version: str = "1.0.0",' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    docs_url: str = "/docs",' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    redoc_url: str = "/redoc",' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    exception_handlers: Optional[Dict[Any, Callable]] = None,' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    enable_cors: bool = True,' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    cors_origins: Optional[list] = None,' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    server_urls: Optional[list] = None' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo ') -> FastAPI:' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    import os' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    if server_urls is None:' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '        if "SASB" in title.upper() or "sasb" in title.lower():' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '            server_urls = [{"url": "https://sasb-production.up.railway.app", "description": "SASB Railway Production"}]' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '        elif "MATERIAL" in title.upper() or "material" in title.lower():' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '            server_urls = [{"url": "https://material-production.up.railway.app", "description": "Material Railway Production"}]' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '        else:' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '            server_urls = [{"url": "http://localhost:8000", "description": "Local Development"}]' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    app = FastAPI(title=title, description=description, version=version, docs_url=docs_url, redoc_url=redoc_url, servers=server_urls)' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    if enable_cors:' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '        if cors_origins is None:' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '            cors_origins = ["*"]' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '        app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_credentials=False, allow_methods=["*"], allow_headers=["*"], expose_headers=["*"], max_age=86400)' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    if exception_handlers:' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '        for exc_type, handler in exception_handlers.items():' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '            app.add_exception_handler(exc_type, handler)' >> /home/appuser/app/shared/core/app_factory.py && \
+    echo '    return app' >> /home/appuser/app/shared/core/app_factory.py
 COPY ./shared/core/dependency_container.py /home/appuser/app/shared/core/dependency_container.py
 COPY ./shared/core/exception_handlers.py /home/appuser/app/shared/core/exception_handlers.py
 COPY ./shared/config/ /home/appuser/app/shared/config/

@@ -28,7 +28,48 @@ COPY .dummyfile-shared ./.dummyfile-shared
 # 더미 파일로 캐시 무효화만 적용
 COPY ./shared/core/redis_factory.py ./shared/core/redis_factory.py
 COPY ./shared/core/__init__.py ./shared/core/__init__.py
-COPY ./shared/core/app_factory.py ./shared/core/app_factory.py
+# 🚨 app_factory.py 직접 생성 (캐시 완전 우회)
+RUN echo 'from typing import Dict, Any, Optional, Callable' > ./shared/core/app_factory.py && \
+    echo 'from fastapi import FastAPI, HTTPException' >> ./shared/core/app_factory.py && \
+    echo 'from fastapi.middleware.cors import CORSMiddleware' >> ./shared/core/app_factory.py && \
+    echo 'from fastapi.responses import JSONResponse' >> ./shared/core/app_factory.py && \
+    echo 'import logging' >> ./shared/core/app_factory.py && \
+    echo 'import sys' >> ./shared/core/app_factory.py && \
+    echo '' >> ./shared/core/app_factory.py && \
+    echo 'logging.basicConfig(' >> ./shared/core/app_factory.py && \
+    echo '    level=logging.INFO,' >> ./shared/core/app_factory.py && \
+    echo '    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",' >> ./shared/core/app_factory.py && \
+    echo '    handlers=[logging.StreamHandler(sys.stdout)]' >> ./shared/core/app_factory.py && \
+    echo ')' >> ./shared/core/app_factory.py && \
+    echo '' >> ./shared/core/app_factory.py && \
+    echo 'def create_fastapi_app(' >> ./shared/core/app_factory.py && \
+    echo '    title: str = "API Service",' >> ./shared/core/app_factory.py && \
+    echo '    description: str = "마이크로서비스 API",' >> ./shared/core/app_factory.py && \
+    echo '    version: str = "1.0.0",' >> ./shared/core/app_factory.py && \
+    echo '    docs_url: str = "/docs",' >> ./shared/core/app_factory.py && \
+    echo '    redoc_url: str = "/redoc",' >> ./shared/core/app_factory.py && \
+    echo '    exception_handlers: Optional[Dict[Any, Callable]] = None,' >> ./shared/core/app_factory.py && \
+    echo '    enable_cors: bool = True,' >> ./shared/core/app_factory.py && \
+    echo '    cors_origins: Optional[list] = None,' >> ./shared/core/app_factory.py && \
+    echo '    server_urls: Optional[list] = None' >> ./shared/core/app_factory.py && \
+    echo ') -> FastAPI:' >> ./shared/core/app_factory.py && \
+    echo '    import os' >> ./shared/core/app_factory.py && \
+    echo '    if server_urls is None:' >> ./shared/core/app_factory.py && \
+    echo '        if "SASB" in title.upper() or "sasb" in title.lower():' >> ./shared/core/app_factory.py && \
+    echo '            server_urls = [{"url": "https://sasb-production.up.railway.app", "description": "SASB Railway Production"}]' >> ./shared/core/app_factory.py && \
+    echo '        elif "MATERIAL" in title.upper() or "material" in title.lower():' >> ./shared/core/app_factory.py && \
+    echo '            server_urls = [{"url": "https://material-production.up.railway.app", "description": "Material Railway Production"}]' >> ./shared/core/app_factory.py && \
+    echo '        else:' >> ./shared/core/app_factory.py && \
+    echo '            server_urls = [{"url": "http://localhost:8000", "description": "Local Development"}]' >> ./shared/core/app_factory.py && \
+    echo '    app = FastAPI(title=title, description=description, version=version, docs_url=docs_url, redoc_url=redoc_url, servers=server_urls)' >> ./shared/core/app_factory.py && \
+    echo '    if enable_cors:' >> ./shared/core/app_factory.py && \
+    echo '        if cors_origins is None:' >> ./shared/core/app_factory.py && \
+    echo '            cors_origins = ["*"]' >> ./shared/core/app_factory.py && \
+    echo '        app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_credentials=False, allow_methods=["*"], allow_headers=["*"], expose_headers=["*"], max_age=86400)' >> ./shared/core/app_factory.py && \
+    echo '    if exception_handlers:' >> ./shared/core/app_factory.py && \
+    echo '        for exc_type, handler in exception_handlers.items():' >> ./shared/core/app_factory.py && \
+    echo '            app.add_exception_handler(exc_type, handler)' >> ./shared/core/app_factory.py && \
+    echo '    return app' >> ./shared/core/app_factory.py
 COPY ./shared/core/dependency_container.py ./shared/core/dependency_container.py
 COPY ./shared/core/exception_handlers.py ./shared/core/exception_handlers.py
 COPY ./shared/config/ ./shared/config/
