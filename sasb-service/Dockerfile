@@ -46,7 +46,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # 🚨 RAILWAY 캐시 완전 무효화 🚨
 # 모든 후속 레이어 강제 재빌드
-ARG CACHE_BUST=2025-07-24-03:50:00
+ARG CACHE_BUST=2025-07-24-08:00:00
 RUN echo "CACHE_BUST=${CACHE_BUST}" > /tmp/cache_bust.txt
 
 # 강제 캐시 무효화 (shared 디렉토리용)
