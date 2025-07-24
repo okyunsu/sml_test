@@ -47,7 +47,21 @@ class DependencyContainer:
         
         # 5. 컨트롤러 계층 (서비스들에 의존)
         sasb_controller = SASBController()
-        dashboard_controller = DashboardController()
+        
+        # DashboardController 초기화 (Redis 연결 실패 시에도 앱 시작 가능하게 함)
+        try:
+            dashboard_controller = DashboardController()
+            print("✅ DashboardController initialized successfully")
+        except Exception as e:
+            print(f"❌ DashboardController initialization failed: {e}")
+            print("⚠️  Creating mock DashboardController")
+            # Mock DashboardController 사용
+            class MockDashboardController:
+                async def get_cache_data(self, key): return None
+                async def set_cache_data(self, key, data, ttl=3600): return True
+                async def delete_cache_data(self, key): return True
+                async def get_cache_stats(self): return {"error": "Redis unavailable"}
+            dashboard_controller = MockDashboardController()
         
         # 컨테이너에 등록
         self._services.update({
