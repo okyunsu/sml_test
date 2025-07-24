@@ -21,7 +21,7 @@ class Settings(BaseServiceSettings):
     # Material 서비스 특화 설정
     APP_NAME: str = "Material Assessment Service"
     PORT: int = 8004
-    REDIS_URL: str = "redis://localhost:6379/1"  # Material Service는 DB 1 사용
+    REDIS_URL: str = "redis://localhost:6379/0"  # SASB Service와 데이터 공유
     
     # 데이터베이스 설정 (향후 사용)
     DATABASE_URL: Optional[str] = None

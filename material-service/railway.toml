@@ -11,12 +11,12 @@ buildCommand = "echo 'Building Material Service...'"
 # ML 설정 (Material Service는 ML 사용 안함)
 DISABLE_ML_MODEL = "true"
 
-# Redis 설정 (캐시용)
-# REDIS_URL은 Railway가 자동 제공
+# Redis 설정 (SASB Service와 데이터 공유)
+REDIS_URL = "${{REDIS_PRIVATE_URL}}"
+REDIS_DB = "0"
 
-# Gateway 연동 설정
-GATEWAY_URL = "https://${{RAILWAY_STATIC_URL}}"
-SASB_SERVICE_URL = "http://sasb-service.railway.internal:8003"
+# SASB Service 직접 연동 (Gateway 없이)
+SASB_SERVICE_URL = "https://sasb-service-production.up.railway.app"
 
 # 서비스 설정
 PYTHONPATH = "/app"

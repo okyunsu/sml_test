@@ -2,9 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 시스템 의존성 설치
+# 시스템 의존성 설치 (최소한의 패키지만)
 RUN apt-get update && apt-get install -y \
-    build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Python 의존성 설치
