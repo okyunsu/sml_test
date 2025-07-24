@@ -1,3 +1,3 @@
 # Railway shared 디렉토리 캐시 무효화용 더미 파일
 # shared/core/redis_factory.py 수정사항 강제 적용
-SHARED_CACHE_BUST=2025-07-24-03:46:00-redis-from-url-fix 
+SHARED_CACHE_BUST=2025-07-24-03:50:00-FORCE-COMPLETE-REBUILD 

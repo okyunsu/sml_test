@@ -44,12 +44,18 @@ RUN useradd --create-home --shell /bin/bash appuser
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
+# 🚨 RAILWAY 캐시 완전 무효화 🚨
+# 모든 후속 레이어 강제 재빌드
+ARG CACHE_BUST=2025-07-24-03:50:00
+RUN echo "CACHE_BUST=${CACHE_BUST}" > /tmp/cache_bust.txt
+
 # 강제 캐시 무효화 (shared 디렉토리용)
 COPY .dummyfile-shared /home/appuser/app/.dummyfile-shared
 
 # 애플리케이션 코드 및 공통 모듈 복사 (ROOT 권한으로)
-COPY ./app /home/appuser/app/app
+# shared 디렉토리 먼저 복사 (가장 중요)
 COPY ./shared /home/appuser/app/shared
+COPY ./app /home/appuser/app/app
 COPY start.sh /home/appuser/app/
 
 # 모델 디렉토리 생성 및 권한 설정 (ROOT 권한으로)

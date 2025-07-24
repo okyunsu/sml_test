@@ -14,12 +14,18 @@ COPY .dummyfile .dummyfile
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 🚨 RAILWAY 캐시 완전 무효화 🚨
+# 모든 후속 레이어 강제 재빌드
+ARG CACHE_BUST=2025-07-24-03:50:00
+RUN echo "CACHE_BUST=${CACHE_BUST}" > /tmp/cache_bust.txt
+
 # 강제 캐시 무효화 (shared 디렉토리용)  
 COPY .dummyfile-shared ./.dummyfile-shared
 
 # 애플리케이션 코드 및 공통 모듈 복사
-COPY ./app ./app
+# shared 디렉토리 먼저 복사 (가장 중요)
 COPY ./shared ./shared
+COPY ./app ./app
 
 # 시작 스크립트 복사
 COPY start.sh ./
