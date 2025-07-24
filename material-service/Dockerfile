@@ -22,9 +22,22 @@ RUN echo "CACHE_BUST=${CACHE_BUST}" > /tmp/cache_bust.txt
 # 강제 캐시 무효화 (shared 디렉토리용)  
 COPY .dummyfile-shared ./.dummyfile-shared
 
-# 애플리케이션 코드 및 공통 모듈 복사
-# shared 디렉토리 먼저 복사 (가장 중요)
-COPY ./shared ./shared
+# 🚨 SHARED 디렉토리 강제 캐시 무효화 🚨
+# 개별 파일 복사로 캐시 회피
+COPY ./shared/core/redis_factory.py ./shared/core/redis_factory.py
+COPY ./shared/core/__init__.py ./shared/core/__init__.py
+COPY ./shared/core/app_factory.py ./shared/core/app_factory.py
+COPY ./shared/core/dependency_container.py ./shared/core/dependency_container.py
+COPY ./shared/core/exception_handlers.py ./shared/core/exception_handlers.py
+COPY ./shared/config/ ./shared/config/
+COPY ./shared/services/ ./shared/services/
+COPY ./shared/interfaces/ ./shared/interfaces/
+COPY ./shared/docs/ ./shared/docs/
+COPY ./shared/testing/ ./shared/testing/
+COPY ./shared/__init__.py ./shared/__init__.py
+RUN echo "✅ material service shared 개별 파일 복사 완료: $(date)" > ./shared_copy_timestamp.txt
+
+# 애플리케이션 코드 복사
 COPY ./app ./app
 
 # 시작 스크립트 복사

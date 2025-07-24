@@ -20,6 +20,10 @@ echo "=== Railway 컨테이너 내부 shared 디렉토리 상태 ==="
 ls -la /home/appuser/app/shared/core/ || echo "❌ shared/core directory not found"
 
 echo ""
+echo "=== shared 복사 타임스탬프 확인 ==="
+cat /home/appuser/app/shared_copy_timestamp.txt || echo "❌ shared_copy_timestamp.txt not found"
+
+echo ""
 echo "=== redis_factory.py 파일 존재 확인 ==="
 ls -la /home/appuser/app/shared/core/redis_factory.py || echo "❌ redis_factory.py not found"
 

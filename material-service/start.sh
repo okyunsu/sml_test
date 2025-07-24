@@ -17,6 +17,9 @@ sys.path.insert(0, '/app')
 print('✅ Python path set:', sys.path[0])
 "
 
+echo "💡 Shared 복사 타임스탬프 확인:"
+cat /app/shared_copy_timestamp.txt || echo "❌ shared_copy_timestamp.txt not found"
+
 echo "💡 Checking shared module import:"
 python -c "
 import sys

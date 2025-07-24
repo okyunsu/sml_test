@@ -52,9 +52,23 @@ RUN echo "CACHE_BUST=${CACHE_BUST}" > /tmp/cache_bust.txt
 # 강제 캐시 무효화 (shared 디렉토리용)
 COPY .dummyfile-shared /home/appuser/app/.dummyfile-shared
 
-# 애플리케이션 코드 및 공통 모듈 복사 (ROOT 권한으로)
-# shared 디렉토리 먼저 복사 (가장 중요)
-COPY ./shared /home/appuser/app/shared
+# 🚨 SHARED 디렉토리 강제 캐시 무효화 🚨
+# 개별 파일 복사로 캐시 회피
+RUN mkdir -p /home/appuser/app/shared/core /home/appuser/app/shared/config /home/appuser/app/shared/services /home/appuser/app/shared/interfaces /home/appuser/app/shared/docs /home/appuser/app/shared/testing
+COPY ./shared/core/redis_factory.py /home/appuser/app/shared/core/redis_factory.py
+COPY ./shared/core/__init__.py /home/appuser/app/shared/core/__init__.py
+COPY ./shared/core/app_factory.py /home/appuser/app/shared/core/app_factory.py
+COPY ./shared/core/dependency_container.py /home/appuser/app/shared/core/dependency_container.py
+COPY ./shared/core/exception_handlers.py /home/appuser/app/shared/core/exception_handlers.py
+COPY ./shared/config/ /home/appuser/app/shared/config/
+COPY ./shared/services/ /home/appuser/app/shared/services/
+COPY ./shared/interfaces/ /home/appuser/app/shared/interfaces/
+COPY ./shared/docs/ /home/appuser/app/shared/docs/
+COPY ./shared/testing/ /home/appuser/app/shared/testing/
+COPY ./shared/__init__.py /home/appuser/app/shared/__init__.py
+RUN echo "✅ shared 개별 파일 복사 완료: $(date)" > /home/appuser/app/shared_copy_timestamp.txt
+
+# 애플리케이션 코드 복사
 COPY ./app /home/appuser/app/app
 COPY start.sh /home/appuser/app/
 
