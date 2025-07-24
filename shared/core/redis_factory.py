@@ -22,12 +22,9 @@ class RedisClientFactory:
             redis_url = os.getenv("REDIS_URL", f"redis://{default_host}:{default_port}/{default_db}")
         
         try:
-            parsed_url = urlparse(redis_url)
-            
-            client = redis.Redis(
-                host=parsed_url.hostname or default_host,
-                port=parsed_url.port or default_port,
-                db=int(parsed_url.path[1:]) if parsed_url.path and parsed_url.path[1:] else default_db,
+            # Redis URL 직접 사용 (인증 정보 자동 파싱)
+            client = redis.from_url(
+                redis_url,
                 decode_responses=True,
                 socket_timeout=5,
                 socket_connect_timeout=5,
@@ -36,7 +33,11 @@ class RedisClientFactory:
             
             # 연결 테스트
             client.ping()
-            logger.info(f"✅ Redis 연결 성공: {parsed_url.hostname}:{parsed_url.port}/{parsed_url.path[1:] if parsed_url.path else default_db}")
+            
+            # 로그용 URL 파싱 (연결 성공 메시지)
+            parsed_url = urlparse(redis_url)
+            db_num = parsed_url.path[1:] if parsed_url.path and parsed_url.path[1:] else "0"
+            logger.info(f"✅ Redis 연결 성공: {parsed_url.hostname}:{parsed_url.port}/{db_num}")
             
             return client
             

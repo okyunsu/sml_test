@@ -15,6 +15,11 @@ echo "CELERY_BROKER_URL: '${CELERY_BROKER_URL:-NOT_SET}'"
 echo "CELERY_RESULT_BACKEND: '${CELERY_RESULT_BACKEND:-NOT_SET}'"
 
 echo ""
+echo "🔍 STEP 2.5: Railway.toml Variable Reference Test"
+echo "Railway REDIS_URL variable exists in Variables tab but not injected"
+echo "Need to set up Variable Reference: Redis Service → SASB Service"
+
+echo ""
 echo "🔍 STEP 3: PATH and uvicorn check"
 echo "Current PATH: $PATH"
 which uvicorn || echo "❌ uvicorn not found in PATH"
