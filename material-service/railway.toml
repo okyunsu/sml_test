@@ -8,4 +8,19 @@ restartPolicyType = "ON_FAILURE"
 buildCommand = "echo 'Building Material Service...'"
 
 [env]
-DISABLE_ML_MODEL = "true" 
+# ML 설정 (Material Service는 ML 사용 안함)
+DISABLE_ML_MODEL = "true"
+
+# Redis 설정 (캐시용)
+# REDIS_URL은 Railway가 자동 제공
+
+# Gateway 연동 설정
+GATEWAY_URL = "https://${{RAILWAY_STATIC_URL}}"
+SASB_SERVICE_URL = "http://sasb-service.railway.internal:8003"
+
+# 서비스 설정
+PYTHONPATH = "/app"
+APP_NAME = "Material Assessment Service" 
+VERSION = "2.0.0"
+DEBUG = "false"
+ENVIRONMENT = "production" 

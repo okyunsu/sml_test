@@ -8,6 +8,22 @@ restartPolicyType = "ON_FAILURE"
 buildCommand = "echo 'Building SASB Service...'"
 
 [env]
+# ML 설정
 MODEL_BASE_PATH = "/home/appuser/app/shared/models"
 MODEL_NAME = "test222"
-DISABLE_ML_MODEL = "false" 
+DISABLE_ML_MODEL = "false"
+
+# Redis 설정 (Railway Redis 서비스 추가 후 자동 설정됨)
+# REDIS_URL은 Railway가 자동 제공
+# REDIS_PRIVATE_URL은 Railway가 자동 제공
+
+# Celery 설정
+CELERY_BROKER_URL = "${{REDIS_PRIVATE_URL}}"
+CELERY_RESULT_BACKEND = "${{REDIS_PRIVATE_URL}}"
+
+# 서비스 설정
+PYTHONPATH = "/home/appuser/app"
+APP_NAME = "SASB Analysis Service"
+VERSION = "2.0.0"
+DEBUG = "false"
+ENVIRONMENT = "production" 
