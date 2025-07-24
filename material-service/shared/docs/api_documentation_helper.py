@@ -33,14 +33,35 @@ class APIDocumentationHelper:
             routes=app.routes,
         )
         
-        # 서버 정보 추가
+        # 서버 정보 추가 (Railway 환경 자동 감지)
         if servers:
             openapi_schema["servers"] = servers
         else:
-            openapi_schema["servers"] = [
-                {"url": "http://localhost:8000", "description": "개발 서버"},
-                {"url": "https://api.example.com", "description": "프로덕션 서버"}
-            ]
+            import os
+            # Railway 환경에서 서비스별 URL 자동 감지
+            if "SASB" in title.upper() or "sasb" in title.lower():
+                openapi_schema["servers"] = [
+                    {"url": "https://sasb-production.up.railway.app", "description": "SASB Railway Production"},
+                    {"url": "http://localhost:8000", "description": "로컬 개발"}
+                ]
+            elif "MATERIAL" in title.upper() or "material" in title.lower():
+                openapi_schema["servers"] = [
+                    {"url": "https://material-production.up.railway.app", "description": "Material Railway Production"},
+                    {"url": "http://localhost:8000", "description": "로컬 개발"}
+                ]
+            else:
+                # 기본값 - Railway 환경변수 체크
+                railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
+                if railway_domain:
+                    openapi_schema["servers"] = [
+                        {"url": f"https://{railway_domain}", "description": "Railway Production"},
+                        {"url": "http://localhost:8000", "description": "로컬 개발"}
+                    ]
+                else:
+                    openapi_schema["servers"] = [
+                        {"url": "http://localhost:8000", "description": "개발 서버"},
+                        {"url": "https://api.example.com", "description": "프로덕션 서버"}
+                    ]
         
         # 태그 메타데이터 추가
         if tags_metadata:
