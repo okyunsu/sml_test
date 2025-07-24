@@ -56,36 +56,15 @@ def create_fastapi_app(
         # Railway와 로컬 개발 환경을 모두 지원하는 CORS 설정
         if cors_origins is None:
             cors_origins = [
-                "*",  # 모든 도메인 허용 (개발용)
-                "https://*.railway.app",  # Railway 도메인
-                "https://*.up.railway.app",  # Railway 새 도메인
-                "http://localhost:3000",  # 로컬 React 개발
-                "http://localhost:8000",  # 로컬 FastAPI 개발
-                "http://localhost:8080",  # 로컬 개발 서버
-                "http://127.0.0.1:3000",
-                "http://127.0.0.1:8000",
-                "http://127.0.0.1:8080"
+                "*"  # 모든 도메인 허용 (Railway 환경에서 안전함)
             ]
         
         app.add_middleware(
             CORSMiddleware,
             allow_origins=cors_origins,
-            allow_credentials=True,
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
-            allow_headers=[
-                "Accept",
-                "Accept-Language", 
-                "Content-Language",
-                "Content-Type",
-                "Authorization",
-                "X-Requested-With",
-                "X-Request-ID",
-                "Origin",
-                "DNT",
-                "User-Agent",
-                "X-Forwarded-For",
-                "X-Railway-*"  # Railway 특정 헤더들
-            ],
+            allow_credentials=False,  # "*" origin과 함께 사용하려면 False여야 함
+            allow_methods=["*"],  # 모든 메서드 허용
+            allow_headers=["*"],  # 모든 헤더 허용
             expose_headers=["*"],
             max_age=86400,  # 24시간 preflight 캐시
         )
