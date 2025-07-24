@@ -47,10 +47,26 @@ def create_fastapi_app(
     # Railway 환경에서 서버 URL 자동 감지
     import os
     if server_urls is None:
+        # 1차: Railway 자동 환경변수 확인
         railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
-        if railway_domain:
+        
+        # 2차: 수동 설정 환경변수 확인
+        swagger_url = os.getenv("SWAGGER_SERVER_URL")
+        
+        # 3차: 서비스별 하드코딩 (Railway 전용)
+        if not railway_domain and not swagger_url:
+            # Railway 환경 감지 (RAILWAY_* 환경변수 존재 확인)
+            if any(key.startswith('RAILWAY_') for key in os.environ.keys()):
+                # 현재 실행 중인 서비스 추론 (제목 기준)
+                if "SASB" in title.upper() or "sasb" in title.lower():
+                    railway_domain = "sasb-production.up.railway.app"
+                elif "MATERIAL" in title.upper() or "material" in title.lower():
+                    railway_domain = "material-production.up.railway.app"
+        
+        if railway_domain or swagger_url:
+            final_url = swagger_url or f"https://{railway_domain}"
             server_urls = [
-                {"url": f"https://{railway_domain}", "description": "Railway Production"}
+                {"url": final_url, "description": "Railway Production"}
             ]
         else:
             # 로컬 개발 환경
