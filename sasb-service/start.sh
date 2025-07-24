@@ -15,26 +15,42 @@ echo "CELERY_BROKER_URL: '${CELERY_BROKER_URL:-NOT_SET}'"
 echo "CELERY_RESULT_BACKEND: '${CELERY_RESULT_BACKEND:-NOT_SET}'"
 
 echo ""
-echo "🔍 STEP 2.5: Redis Factory Code Verification"
-echo "Checking if redis.from_url() is actually being used..."
+echo "🔍 STEP 2.5: 컨테이너 내부 실제 파일 확인"
+echo "=== Railway 컨테이너 내부 shared 디렉토리 상태 ==="
+ls -la /home/appuser/app/shared/core/ || echo "❌ shared/core directory not found"
+
+echo ""
+echo "=== redis_factory.py 파일 존재 확인 ==="
+ls -la /home/appuser/app/shared/core/redis_factory.py || echo "❌ redis_factory.py not found"
+
+echo ""
+echo "=== redis_factory.py 실제 내용 (Line 20-35) ==="
 python -c "
 import sys
 sys.path.insert(0, '/home/appuser/app')
-with open('/home/appuser/app/shared/core/redis_factory.py', 'r') as f:
-    content = f.read()
-    if 'redis.from_url(' in content:
-        print('✅ redis.from_url() found in code')
-    else:
-        print('❌ redis.from_url() NOT found - still using old code!')
-    
-    if 'redis.Redis(' in content:
-        print('⚠️  redis.Redis() still found - mixed code')
-    
-    print('Key lines:')
-    for i, line in enumerate(content.split('\n'), 1):
-        if 'client = redis.' in line:
-            print(f'  Line {i}: {line.strip()}')
-" || echo "❌ Could not read redis_factory.py"
+try:
+    with open('/home/appuser/app/shared/core/redis_factory.py', 'r') as f:
+        lines = f.readlines()
+        print('Total lines:', len(lines))
+        print('Lines 20-35:')
+        for i in range(19, min(35, len(lines))):
+            print(f'  {i+1:2d}: {lines[i].rstrip()}')
+        
+        # 전체 파일에서 redis 관련 라인 찾기
+        print('')
+        print('All redis.* lines:')
+        for i, line in enumerate(lines, 1):
+            if 'redis.' in line.lower() and ('client' in line or 'Redis' in line):
+                print(f'  {i:2d}: {line.strip()}')
+except Exception as e:
+    print(f'❌ Error reading file: {e}')
+"
+
+echo ""
+echo "=== Dockerfile COPY 명령어 검증 ==="
+echo "현재 작업 디렉토리: $(pwd)"
+echo "shared 디렉토리 내용:"
+find /home/appuser/app/shared -name "*.py" | head -10 || echo "❌ shared directory scanning failed"
 
 echo ""
 echo "🔍 STEP 3: PATH and uvicorn check"
