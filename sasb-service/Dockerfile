@@ -51,6 +51,9 @@ COPY --chown=appuser:appuser ./shared ./shared
 COPY --chown=appuser:appuser start.sh ./
 RUN chmod +x start.sh
 
+# 디렉토리 구조 검증
+RUN ls -la /home/appuser/app/shared || echo "❗ Warning: shared directory not found"
+
 # Railway는 동적 포트 할당하므로 EXPOSE 불필요
 
 # 헬스체크 (더 효율적으로)

@@ -22,7 +22,8 @@ RUN chmod +x start.sh
 # 업로드 디렉토리 생성
 RUN mkdir -p uploads
 
-# materiality 파일들 명시적 복사 확인
+# 디렉토리 구조 검증
+RUN ls -la /app/shared || echo "❗ Warning: shared directory not found"
 RUN ls -la /app/app/materiality/ || echo "Warning: materiality directory not found"
 
 # Railway는 동적 포트 할당하므로 EXPOSE 불필요
