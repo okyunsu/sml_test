@@ -36,23 +36,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 비root 사용자 생성
 RUN useradd --create-home --shell /bin/bash appuser
-USER appuser
-WORKDIR /home/appuser/app
 
 # Build stage에서 설치된 Python 패키지들만 복사 (전역 설치로 변경)
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# 애플리케이션 코드 및 공통 모듈 복사
-COPY --chown=appuser:appuser ./app ./app
-COPY --chown=appuser:appuser ./shared ./shared
+# 애플리케이션 코드 및 공통 모듈 복사 (ROOT 권한으로)
+COPY ./app /home/appuser/app/app
+COPY ./shared /home/appuser/app/shared
+COPY start.sh /home/appuser/app/
 
-# 시작 스크립트 복사
-COPY --chown=appuser:appuser start.sh ./
-RUN chmod +x start.sh
+# 모델 디렉토리 생성 및 권한 설정 (ROOT 권한으로)
+RUN mkdir -p /home/appuser/app/shared/models
+RUN chown -R appuser:appuser /home/appuser/app
+RUN chmod +x /home/appuser/app/start.sh
 
 # 디렉토리 구조 검증
 RUN ls -la /home/appuser/app/shared || echo "❗ Warning: shared directory not found"
+
+# 이제 appuser로 전환
+USER appuser
+WORKDIR /home/appuser/app
 
 # Railway는 동적 포트 할당하므로 EXPOSE 불필요
 

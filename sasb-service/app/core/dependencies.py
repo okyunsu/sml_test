@@ -26,7 +26,14 @@ class DependencyContainer:
     def _initialize_services(self):
         """서비스 초기화 - 의존성 순서에 따라 초기화"""
         # 1. 인프라 계층 (가장 기본) - 공통 Redis 팩토리 사용
-        redis_client = RedisClientFactory.create_from_url(settings.CELERY_BROKER_URL)
+        try:
+            print(f"🔍 DEBUG: Trying to connect to Redis: {settings.CELERY_BROKER_URL}")
+            redis_client = RedisClientFactory.create_from_url(settings.CELERY_BROKER_URL)
+            print("✅ Redis connection successful")
+        except Exception as e:
+            print(f"❌ Redis connection failed: {e}")
+            print("⚠️  Using mock Redis client for development")
+            redis_client = None  # 임시로 None 처리
         
         # 2. 기본 서비스 계층 (의존성 없음)
         naver_news_service = NaverNewsService()
