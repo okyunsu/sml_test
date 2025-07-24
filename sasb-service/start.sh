@@ -6,10 +6,14 @@ echo "💡 Current PATH: $PATH"
 echo "💡 Checking uvicorn path:"
 which uvicorn || echo "❌ uvicorn not found in PATH"
 
-echo "💡 Checking Redis environment variables:"
-echo "   REDIS_PRIVATE_URL: $REDIS_PRIVATE_URL"
-echo "   REDIS_URL: $REDIS_URL" 
-echo "   CELERY_BROKER_URL: $CELERY_BROKER_URL"
+echo "💡 Checking ALL Railway environment variables:"
+env | grep -E "(RAILWAY|REDIS)" | sort || echo "No RAILWAY/REDIS vars found"
+
+echo "💡 Specific Redis variables:"
+echo "   REDIS_PRIVATE_URL: '$REDIS_PRIVATE_URL'"
+echo "   REDIS_URL: '$REDIS_URL'" 
+echo "   CELERY_BROKER_URL: '$CELERY_BROKER_URL'"
+echo "   CELERY_RESULT_BACKEND: '$CELERY_RESULT_BACKEND'"
 
 echo "💡 Checking python and pip packages:"
 python -c "import uvicorn; print('✅ uvicorn import OK')" || echo "❌ uvicorn import failed"

@@ -12,13 +12,14 @@ MODEL_BASE_PATH = "/home/appuser/app/shared/models"
 MODEL_NAME = "test222"
 DISABLE_ML_MODEL = "true"
 
-# Redis 설정 (Material Service와 공유)
+# Redis 설정 (Railway 자동 환경변수 사용)
+# Railway는 Redis Database 추가 시 자동으로 REDIS_PRIVATE_URL 주입
 REDIS_URL = "${{REDIS_PRIVATE_URL}}"
 REDIS_DB = "0"
 
-# Celery 설정 (같은 Redis DB 사용)
-CELERY_BROKER_URL = "${{REDIS_PRIVATE_URL}}/0"
-CELERY_RESULT_BACKEND = "${{REDIS_PRIVATE_URL}}/0"
+# Celery 설정 (Railway Redis 자동 환경변수 사용)
+CELERY_BROKER_URL = "${{REDIS_PRIVATE_URL}}"
+CELERY_RESULT_BACKEND = "${{REDIS_PRIVATE_URL}}"
 
 # 서비스 설정
 PYTHONPATH = "/home/appuser/app"
