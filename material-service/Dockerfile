@@ -24,7 +24,41 @@ COPY .dummyfile-shared ./.dummyfile-shared
 
 # 🚨 SHARED 디렉토리 강제 캐시 무효화 🚨
 # 개별 파일 복사로 캐시 회피
-COPY ./shared/core/redis_factory.py ./shared/core/redis_factory.py
+# 🚨 redis_factory.py 강제 덮어쓰기 (캐시 완전 우회)
+RUN echo 'import os' > ./shared/core/redis_factory.py && \
+    echo 'import logging' >> ./shared/core/redis_factory.py && \
+    echo 'from typing import Optional' >> ./shared/core/redis_factory.py && \
+    echo 'from urllib.parse import urlparse' >> ./shared/core/redis_factory.py && \
+    echo 'import redis' >> ./shared/core/redis_factory.py && \
+    echo '' >> ./shared/core/redis_factory.py && \
+    echo 'logger = logging.getLogger(__name__)' >> ./shared/core/redis_factory.py && \
+    echo '' >> ./shared/core/redis_factory.py && \
+    echo 'class RedisClientFactory:' >> ./shared/core/redis_factory.py && \
+    echo '    @staticmethod' >> ./shared/core/redis_factory.py && \
+    echo '    def create_from_url(' >> ./shared/core/redis_factory.py && \
+    echo '        redis_url: Optional[str] = None,' >> ./shared/core/redis_factory.py && \
+    echo '        default_host: str = "localhost",' >> ./shared/core/redis_factory.py && \
+    echo '        default_port: int = 6379,' >> ./shared/core/redis_factory.py && \
+    echo '        default_db: int = 0' >> ./shared/core/redis_factory.py && \
+    echo '    ) -> redis.Redis:' >> ./shared/core/redis_factory.py && \
+    echo '        if not redis_url:' >> ./shared/core/redis_factory.py && \
+    echo '            redis_url = os.getenv("REDIS_URL", f"redis://{default_host}:{default_port}/{default_db}")' >> ./shared/core/redis_factory.py && \
+    echo '        try:' >> ./shared/core/redis_factory.py && \
+    echo '            client = redis.from_url(' >> ./shared/core/redis_factory.py && \
+    echo '                redis_url,' >> ./shared/core/redis_factory.py && \
+    echo '                decode_responses=True,' >> ./shared/core/redis_factory.py && \
+    echo '                socket_timeout=5,' >> ./shared/core/redis_factory.py && \
+    echo '                socket_connect_timeout=5,' >> ./shared/core/redis_factory.py && \
+    echo '                retry_on_timeout=True' >> ./shared/core/redis_factory.py && \
+    echo '            )' >> ./shared/core/redis_factory.py && \
+    echo '            client.ping()' >> ./shared/core/redis_factory.py && \
+    echo '            parsed_url = urlparse(redis_url)' >> ./shared/core/redis_factory.py && \
+    echo '            db_num = parsed_url.path[1:] if parsed_url.path and parsed_url.path[1:] else "0"' >> ./shared/core/redis_factory.py && \
+    echo '            logger.info(f"✅ Redis 연결 성공: {parsed_url.hostname}:{parsed_url.port}/{db_num}")' >> ./shared/core/redis_factory.py && \
+    echo '            return client' >> ./shared/core/redis_factory.py && \
+    echo '        except Exception as e:' >> ./shared/core/redis_factory.py && \
+    echo '            logger.error(f"❌ Redis 연결 실패: {str(e)}")' >> ./shared/core/redis_factory.py && \
+    echo '            raise' >> ./shared/core/redis_factory.py
 COPY ./shared/core/__init__.py ./shared/core/__init__.py
 COPY ./shared/core/app_factory.py ./shared/core/app_factory.py
 COPY ./shared/core/dependency_container.py ./shared/core/dependency_container.py

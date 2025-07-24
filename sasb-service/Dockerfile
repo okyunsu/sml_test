@@ -55,7 +55,41 @@ COPY .dummyfile-shared /home/appuser/app/.dummyfile-shared
 # 🚨 SHARED 디렉토리 강제 캐시 무효화 🚨
 # 개별 파일 복사로 캐시 회피
 RUN mkdir -p /home/appuser/app/shared/core /home/appuser/app/shared/config /home/appuser/app/shared/services /home/appuser/app/shared/interfaces /home/appuser/app/shared/docs /home/appuser/app/shared/testing
-COPY ./shared/core/redis_factory.py /home/appuser/app/shared/core/redis_factory.py
+# 🚨 redis_factory.py 강제 덮어쓰기 (캐시 완전 우회)
+RUN echo 'import os' > /home/appuser/app/shared/core/redis_factory.py && \
+    echo 'import logging' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo 'from typing import Optional' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo 'from urllib.parse import urlparse' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo 'import redis' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo 'logger = logging.getLogger(__name__)' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo 'class RedisClientFactory:' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '    @staticmethod' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '    def create_from_url(' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '        redis_url: Optional[str] = None,' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '        default_host: str = "localhost",' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '        default_port: int = 6379,' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '        default_db: int = 0' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '    ) -> redis.Redis:' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '        if not redis_url:' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            redis_url = os.getenv("REDIS_URL", f"redis://{default_host}:{default_port}/{default_db}")' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '        try:' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            client = redis.from_url(' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '                redis_url,' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '                decode_responses=True,' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '                socket_timeout=5,' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '                socket_connect_timeout=5,' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '                retry_on_timeout=True' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            )' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            client.ping()' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            parsed_url = urlparse(redis_url)' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            db_num = parsed_url.path[1:] if parsed_url.path and parsed_url.path[1:] else "0"' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            logger.info(f"✅ Redis 연결 성공: {parsed_url.hostname}:{parsed_url.port}/{db_num}")' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            return client' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '        except Exception as e:' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            logger.error(f"❌ Redis 연결 실패: {str(e)}")' >> /home/appuser/app/shared/core/redis_factory.py && \
+    echo '            raise' >> /home/appuser/app/shared/core/redis_factory.py
 COPY ./shared/core/__init__.py /home/appuser/app/shared/core/__init__.py
 COPY ./shared/core/app_factory.py /home/appuser/app/shared/core/app_factory.py
 COPY ./shared/core/dependency_container.py /home/appuser/app/shared/core/dependency_container.py
