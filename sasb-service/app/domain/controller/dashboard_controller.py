@@ -82,7 +82,7 @@ class DashboardController:
                 pass
             
             # 모니터링 중인 회사 수
-            monitored_companies = ["두산퓨얼셀", "LS ELECTRIC"]
+            monitored_companies = ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"]
             
             # 캐시 통계
             cache_stats = await self._get_cache_statistics()
@@ -117,7 +117,7 @@ class DashboardController:
             
             # 회사별 캐시 상태 확인
             companies_cache = {}
-            companies = ["두산퓨얼셀", "LS ELECTRIC"]
+            companies = ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"]
             
             for company in companies:
                 company_cache_key = f"latest_companies_renewable_analysis:{company}"

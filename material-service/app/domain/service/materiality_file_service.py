@@ -20,7 +20,8 @@ class MaterialityFileService:
         # MVP 지원 기업 목록
         self.supported_companies = {
             "두산퓨얼셀": "doosan.txt",
-            "LS ELECTRIC": "ls.txt"
+            "LS ELECTRIC": "ls.txt",
+            "한국중부발전": "komipo.txt"
         }
     
     def get_company_file_path(self, company_name: str) -> Optional[Path]:

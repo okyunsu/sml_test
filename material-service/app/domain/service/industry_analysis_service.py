@@ -23,7 +23,7 @@ class IndustryAnalysisService:
             "신재생에너지": {
                 "description": "태양광, 풍력, 연료전지 등 신재생에너지 산업",
                 "key_sasb_topics": ["기후변화 대응", "환경 영향", "에너지 효율", "기술 혁신", "안전", "규제 준수"],
-                "related_companies": ["두산퓨얼셀", "LS ELECTRIC"]
+                "related_companies": ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"]
             }
         }
     
@@ -134,7 +134,7 @@ class IndustryAnalysisService:
             gateway_client = GatewayClient()
             
             # 두 회사 뉴스 수집
-            companies = ["두산퓨얼셀", "LS ELECTRIC"]
+            companies = ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"]
             all_articles = []
             
             for company in companies:

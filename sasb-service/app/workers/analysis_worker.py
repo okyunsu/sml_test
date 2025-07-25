@@ -78,7 +78,7 @@ SASB_ISSUE_KEYWORDS = [
 # 하위 호환성을 위한 기존 키워드 (deprecated, 새로운 방식 사용 권장)
 RENEWABLE_KEYWORDS = SASB_ISSUE_KEYWORDS
 
-COMPANIES = ["두산퓨얼셀", "LS ELECTRIC"]
+COMPANIES = ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"]
 MAX_ARTICLES_IN_CACHE = 100
 
 # ✅ Python Path 설정 (shared 모듈 접근용)
