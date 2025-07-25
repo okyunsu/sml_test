@@ -37,7 +37,27 @@ class DependencyContainer:
         
         # 2. 기본 서비스 계층 (의존성 없음)
         naver_news_service = NaverNewsService()
-        ml_inference_service = MLInferenceService()
+        
+        # ML 모델 서비스 - 환경변수에 따라 조건부 생성
+        disable_ml = os.getenv("DISABLE_ML_MODEL", "false").lower() == "true"
+        if disable_ml:
+            print("🔧 ML 모델이 비활성화되었습니다. Mock ML 서비스를 사용합니다.")
+            # Mock ML 서비스 생성 (모델 없이 기본값 반환)
+            class MockMLInferenceService:
+                def __init__(self):
+                    self.tokenizer = None
+                    self.model = None
+                    self.device = None
+                    print("✅ Mock ML Inference Service 초기화 완료")
+                
+                def analyze_sentiment(self, text: str) -> dict:
+                    """Mock 감성 분석 - 항상 중립 반환"""
+                    return {"sentiment": "중립", "confidence": 0.0}
+            
+            ml_inference_service = MockMLInferenceService()
+        else:
+            print("🤖 ML 모델이 활성화되었습니다. 실제 ML 서비스를 로딩합니다.")
+            ml_inference_service = MLInferenceService()
         
         # 3. 중간 서비스 계층 (기본 서비스들에 의존)
         analysis_service = AnalysisService()
