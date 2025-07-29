@@ -6,8 +6,10 @@
 
 ### Base URL
 ```
-Gateway를 통한 접근: http://localhost:8080/gateway/v1/sasb
-Direct 접근 (개발용): http://localhost:8003
+🚀 Railway Production: https://sasb-production.up.railway.app
+Gateway를 통한 접근: https://sasb-production.up.railway.app/api/v1
+Direct 접근 (Production): https://sasb-production.up.railway.app
+로컬 개발용: http://localhost:8003
 ```
 
 ### 헤더 설정
@@ -29,10 +31,11 @@ Direct 접근 (개발용): http://localhost:8003
   - 산업 키워드 (33개): 신재생에너지, 태양광, 풍력, 발전소, ESS, 수소 등
   - SASB 이슈 키워드 (53개): 탄소중립, 온실가스, 폐패널, SMP, 중대재해 등
 
-### 🤖 ML 기반 감성 분석
-- **모델**: Hugging Face Transformers (한국어 특화)
-- **출력**: 3-class 분류 (긍정/부정/중립) + 신뢰도 점수
-- **변환**: LABEL_0→긍정, LABEL_1→부정, LABEL_2→중립
+### 🤖 키워드 기반 감성 분석
+- **개선**: ML 모델 없이도 정확한 감성 분석
+- **키워드**: ESG/SASB 특화 긍정/부정 키워드 79개 기반
+- **출력**: 3-class 분류 (긍정/부정/중립) + 신뢰도 점수 (0.0-0.9)
+- **로직**: 키워드 매칭 개수 기반 감성 판단
 
 ### 🔄 백그라운드 시스템
 - **Celery Worker**: 자동화된 백그라운드 뉴스 수집 및 분석
@@ -47,7 +50,7 @@ Direct 접근 (개발용): http://localhost:8003
 
 #### 1.1 헬스체크
 ```http
-GET /gateway/v1/sasb/api/v1/health
+GET https://sasb-production.up.railway.app/api/v1/health
 ```
 **용도**: SASB 서비스 상태 확인  
 **응답 예시**:
@@ -61,14 +64,15 @@ GET /gateway/v1/sasb/api/v1/health
     "🔍 회사 + SASB 키워드 조합 분석",
     "📊 SASB 전용 키워드 분석", 
     "💾 Redis 캐시 시스템",
-    "🔄 백그라운드 자동 분석"
+    "🔄 백그라운드 자동 분석",
+    "🤖 키워드 기반 감성분석"
   ]
 }
 ```
 
 #### 1.2 회사 + SASB 키워드 조합 분석 (핵심)
 ```http
-POST /gateway/v1/sasb/api/v1/analyze/company-sasb
+POST https://sasb-production.up.railway.app/api/v1/analyze/company-sasb
 ```
 **Query Parameters**:
 - `company_name`: 분석할 회사명 (필수)
@@ -77,7 +81,7 @@ POST /gateway/v1/sasb/api/v1/analyze/company-sasb
 
 **예시 요청**:
 ```http
-POST /gateway/v1/sasb/api/v1/analyze/company-sasb?company_name=두산퓨얼셀&sasb_keywords[]=탄소중립&sasb_keywords[]=온실가스&max_results=50
+POST https://sasb-production.up.railway.app/api/v1/analyze/company-sasb?company_name=두산퓨얼셀&sasb_keywords[]=탄소중립&sasb_keywords[]=온실가스&max_results=50
 ```
 
 **응답 예시**:
@@ -86,6 +90,18 @@ POST /gateway/v1/sasb/api/v1/analyze/company-sasb?company_name=두산퓨얼셀&s
   "task_id": "company_sasb_20250115_103000",
   "status": "completed",
   "searched_keywords": ["두산퓨얼셀", "탄소중립", "온실가스"],
+  "keyword_analysis": {
+    "company_keywords": ["두산퓨얼셀", "Doosan FuelCell", "두산"],
+    "sasb_keywords": ["탄소중립", "온실가스"],
+    "industry_keywords": ["연료전지", "수소에너지", "발전", "전력"],
+    "total_unique_keywords": 9,
+    "keyword_matching_performance": {
+      "high_match_articles": 28,
+      "medium_match_articles": 12,
+      "low_match_articles": 5,
+      "average_match_score": 0.74
+    }
+  },
   "total_articles_found": 45,
   "company_name": "두산퓨얼셀",
   "analysis_type": "company_sasb",
@@ -95,14 +111,19 @@ POST /gateway/v1/sasb/api/v1/analyze/company-sasb?company_name=두산퓨얼셀&s
       "description": "두산퓨얼셀이 탄소중립 달성을 위해 수소연료전지 기술을...",
       "link": "https://news.example.com/123",
       "pub_date": "2025-01-15T10:00:00.000Z",
+      "matched_keywords": ["두산퓨얼셀", "탄소중립", "수소연료전지"],
+      "keyword_relevance_score": 0.85,
       "sentiment": {
         "sentiment": "긍정",
         "confidence": 0.85,
-        "original_label": "LABEL_0"
+        "analysis_method": "keyword_based",
+        "matched_positive_keywords": ["혁신", "발전", "성과"],
+        "matched_negative_keywords": []
       },
       "sasb_classification": {
         "primary_issue": "E-GHG",
-        "confidence": 0.75
+        "confidence": 0.75,
+        "supporting_keywords": ["탄소중립", "온실가스", "수소에너지"]
       }
     }
   ]
@@ -112,7 +133,7 @@ POST /gateway/v1/sasb/api/v1/analyze/company-sasb?company_name=두산퓨얼셀&s
 
 #### 1.3 SASB 전용 키워드 분석
 ```http
-POST /gateway/v1/sasb/api/v1/analyze/sasb-only
+POST https://sasb-production.up.railway.app/api/v1/analyze/sasb-only
 ```
 **Query Parameters**:
 - `sasb_keywords[]`: SASB 키워드 목록 (선택사항, 미지정시 기본값 사용)
@@ -120,7 +141,7 @@ POST /gateway/v1/sasb/api/v1/analyze/sasb-only
 
 **예시 요청**:
 ```http
-POST /gateway/v1/sasb/api/v1/analyze/sasb-only?sasb_keywords[]=탄소중립&sasb_keywords[]=재생에너지&max_results=100
+POST https://sasb-production.up.railway.app/api/v1/analyze/sasb-only?sasb_keywords[]=탄소중립&sasb_keywords[]=재생에너지&max_results=100
 ```
 
 **응답 구조**: 위와 동일하지만 `company_name`은 `null`
@@ -131,7 +152,7 @@ POST /gateway/v1/sasb/api/v1/analyze/sasb-only?sasb_keywords[]=탄소중립&sasb
 
 #### 2.1 시스템 전체 상태
 ```http
-GET /gateway/v1/sasb/api/v1/dashboard/status
+GET https://sasb-production.up.railway.app/api/v1/dashboard/status
 ```
 **용도**: SASB 시스템 전체 상태 및 Redis 연결 확인  
 **응답 예시**:
@@ -150,20 +171,20 @@ GET /gateway/v1/sasb/api/v1/dashboard/status
 
 #### 2.2 모니터링 회사 목록
 ```http
-GET /gateway/v1/sasb/api/v1/dashboard/companies
+GET https://sasb-production.up.railway.app/api/v1/dashboard/companies
 ```
 **응답 예시**:
 ```json
 {
-  "companies": ["두산퓨얼셀", "LS ELECTRIC"],
-  "total_count": 2,
+  "companies": ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"],
+  "total_count": 3,
   "last_updated": "2025-01-15T10:30:00.000Z"
 }
 ```
 
 #### 2.3 SASB 뉴스 분석 결과 조회
 ```http
-GET /gateway/v1/sasb/api/v1/dashboard/sasb-news
+GET https://sasb-production.up.railway.app/api/v1/dashboard/sasb-news
 ```
 **Query Parameters**:
 - `max_results`: 반환할 최대 뉴스 개수 (기본값: 100)
@@ -178,7 +199,7 @@ GET /gateway/v1/sasb/api/v1/dashboard/sasb-news
 
 #### 3.1 Worker 전체 상태
 ```http
-GET /gateway/v1/sasb/api/v1/workers/status
+GET https://sasb-production.up.railway.app/api/v1/workers/status
 ```
 **응답 예시**:
 ```json
@@ -199,7 +220,7 @@ GET /gateway/v1/sasb/api/v1/workers/status
 
 #### 3.2 🎯 조합 키워드 검색 결과 (고정확도)
 ```http
-GET /gateway/v1/sasb/api/v1/workers/results/combined-keywords
+GET https://sasb-production.up.railway.app/api/v1/workers/results/combined-keywords
 ```
 **Query Parameters**:
 - `max_results`: 반환할 최대 뉴스 개수 (기본값: 100)
@@ -221,7 +242,8 @@ GET /gateway/v1/sasb/api/v1/workers/results/combined-keywords
       "link": "https://news.naver.com/renewable-energy-esg",
       "sentiment": {
         "sentiment": "긍정",
-        "confidence": 0.82
+        "confidence": 0.82,
+        "analysis_method": "keyword_based"
       }
     }
   ]
@@ -231,30 +253,30 @@ GET /gateway/v1/sasb/api/v1/workers/results/combined-keywords
 
 #### 3.3 🎯 회사별 조합 검색 결과
 ```http
-GET /gateway/v1/sasb/api/v1/workers/results/company-combined/{company}
+GET https://sasb-production.up.railway.app/api/v1/workers/results/company-combined/{company}
 ```
 **Path Parameters**:
-- `company`: 회사명 (예: "두산퓨얼셀", "LS ELECTRIC")
+- `company`: 회사명 (예: "두산퓨얼셀", "LS ELECTRIC", "한국중부발전")
 
 **Query Parameters**:
 - `max_results`: 반환할 최대 뉴스 개수 (기본값: 100)
 
 **예시 요청**:
 ```http
-GET /gateway/v1/sasb/api/v1/workers/results/company-combined/두산퓨얼셀?max_results=50
+GET https://sasb-production.up.railway.app/api/v1/workers/results/company-combined/두산퓨얼셀?max_results=50
 ```
 
 **특징**: 특정 회사 + (산업 키워드) AND (SASB 이슈 키워드) 조합
 
 #### 3.4 Worker SASB 뉴스 결과
 ```http
-GET /gateway/v1/sasb/api/v1/workers/results/sasb-news
+GET https://sasb-production.up.railway.app/api/v1/workers/results/sasb-news
 ```
 **특징**: Worker에서 백그라운드로 처리한 SASB 뉴스 분석 결과
 
 #### 3.5 Worker 스케줄 정보
 ```http
-GET /gateway/v1/sasb/api/v1/workers/schedule
+GET https://sasb-production.up.railway.app/api/v1/workers/schedule
 ```
 **응답 예시**:
 ```json
@@ -277,12 +299,12 @@ GET /gateway/v1/sasb/api/v1/workers/schedule
 
 #### 4.1 캐시 정보 조회
 ```http
-GET /gateway/v1/sasb/api/v1/cache/info
+GET https://sasb-production.up.railway.app/api/v1/cache/info
 ```
 
 #### 4.2 회사별 캐시 삭제
 ```http
-DELETE /gateway/v1/sasb/api/v1/cache/company/{company}
+DELETE https://sasb-production.up.railway.app/api/v1/cache/company/{company}
 ```
 
 ---
@@ -293,7 +315,7 @@ DELETE /gateway/v1/sasb/api/v1/cache/company/{company}
 ```javascript
 async function checkSASBStatus() {
   try {
-    const response = await fetch('/gateway/v1/sasb/api/v1/health');
+    const response = await fetch('https://sasb-production.up.railway.app/api/v1/health');
     const status = await response.json();
     
     return {
@@ -328,7 +350,7 @@ async function analyzeCompanySASB(companyName, options = {}) {
   
   try {
     const response = await fetch(
-      `/gateway/v1/sasb/api/v1/analyze/company-sasb?${params}`,
+      `https://sasb-production.up.railway.app/api/v1/analyze/company-sasb?${params}`,
       {
         method: 'POST',
         headers: {
@@ -356,7 +378,7 @@ async function analyzeCompanySASB(companyName, options = {}) {
 async function getCombinedKeywordResults(maxResults = 100) {
   try {
     const response = await fetch(
-      `/gateway/v1/sasb/api/v1/workers/results/combined-keywords?max_results=${maxResults}`
+      `https://sasb-production.up.railway.app/api/v1/workers/results/combined-keywords?max_results=${maxResults}`
     );
     
     if (!response.ok) {
@@ -380,7 +402,7 @@ async function getCombinedKeywordResults(maxResults = 100) {
 ```javascript
 async function getWorkerStatus() {
   try {
-    const response = await fetch('/gateway/v1/sasb/api/v1/workers/status');
+    const response = await fetch('https://sasb-production.up.railway.app/api/v1/workers/status');
     const status = await response.json();
     
     return {
@@ -401,6 +423,7 @@ async function getWorkerStatus() {
 class SASBDashboard {
   constructor() {
     this.refreshInterval = null;
+    this.baseUrl = 'https://sasb-production.up.railway.app';
   }
   
   async initialize() {
@@ -468,8 +491,14 @@ class SASBDashboard {
           <span class="sentiment ${article.sentiment.sentiment}">
             ${article.sentiment.sentiment} (${(article.sentiment.confidence * 100).toFixed(1)}%)
           </span>
+          <span class="method">키워드 기반</span>
           <span class="date">${new Date(article.pub_date).toLocaleDateString()}</span>
           <a href="${article.link}" target="_blank" class="read-more">기사 보기</a>
+        </div>
+        <div class="keyword-info">
+          <strong>매칭 키워드:</strong> 
+          ${article.matched_keywords?.map(kw => `<span class="matched-keyword">${kw}</span>`).join(' ') || 'N/A'}
+          <span class="relevance-score">관련성: ${((article.keyword_relevance_score || 0) * 100).toFixed(1)}점</span>
         </div>
       </div>
     `).join('');
@@ -484,6 +513,90 @@ class SASBDashboard {
     
     // 감성 분석 차트 생성
     this.createSentimentChart(sentiments);
+  }
+
+  // 🔍 키워드 분석 기능 추가
+  displayKeywordAnalysis(analysisResult) {
+    const keywordAnalysis = analysisResult.keyword_analysis;
+    if (!keywordAnalysis) return;
+
+    const container = document.getElementById('keyword-analysis');
+    
+    container.innerHTML = `
+      <div class="keyword-summary">
+        <h3>🔍 SASB 키워드 분석</h3>
+        <div class="keyword-stats">
+          <div class="stat-item">
+            <span class="label">회사 키워드:</span>
+            <span class="value">${keywordAnalysis.company_keywords?.length || 0}개</span>
+            <div class="keywords">${keywordAnalysis.company_keywords?.join(', ') || 'N/A'}</div>
+          </div>
+          <div class="stat-item">
+            <span class="label">SASB 키워드:</span>
+            <span class="value">${keywordAnalysis.sasb_keywords?.length || 0}개</span>
+            <div class="keywords">${keywordAnalysis.sasb_keywords?.join(', ') || 'N/A'}</div>
+          </div>
+          <div class="stat-item">
+            <span class="label">산업 키워드:</span>
+            <span class="value">${keywordAnalysis.industry_keywords?.length || 0}개</span>
+            <div class="keywords">${keywordAnalysis.industry_keywords?.join(', ') || 'N/A'}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="matching-performance">
+        <h4>📊 키워드 매칭 성과</h4>
+        <div class="performance-metrics">
+          <div class="metric">
+            <span class="metric-label">고관련성 기사:</span>
+            <span class="metric-value">${keywordAnalysis.keyword_matching_performance?.high_match_articles || 0}개</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">중관련성 기사:</span>
+            <span class="metric-value">${keywordAnalysis.keyword_matching_performance?.medium_match_articles || 0}개</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">평균 매칭 점수:</span>
+            <span class="metric-value">${((keywordAnalysis.keyword_matching_performance?.average_match_score || 0) * 100).toFixed(1)}점</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async analyzeCompanyWithKeywordTracking(companyName) {
+    try {
+      showLoadingSpinner(`${companyName} SASB 키워드 분석 중...`);
+      
+      const result = await analyzeCompanySASB(companyName, {
+        sasbKeywords: ['탄소중립', '온실가스', '재생에너지'],
+        maxResults: 50
+      });
+      
+      // 기본 분석 결과 표시
+      this.displayNewsResults(result.analyzed_articles);
+      this.displaySentimentAnalysis(result.analyzed_articles);
+      
+      // 키워드 분석 표시
+      this.displayKeywordAnalysis(result);
+      
+      // 키워드 성과 로깅
+      if (result.keyword_analysis) {
+        console.log('🎯 SASB 키워드 분석 결과:', {
+          totalKeywords: result.keyword_analysis.total_unique_keywords,
+          avgMatchScore: result.keyword_analysis.keyword_matching_performance?.average_match_score,
+          topPerformingKeywords: result.analyzed_articles
+            .filter(article => article.keyword_relevance_score > 0.8)
+            .flatMap(article => article.matched_keywords)
+            .slice(0, 10)
+        });
+      }
+      
+    } catch (error) {
+      showErrorMessage(`${companyName} SASB 키워드 분석 중 오류가 발생했습니다.`);
+    } finally {
+      hideLoadingSpinner();
+    }
   }
 }
 
@@ -547,18 +660,18 @@ const dashboardLayout = {
   },
   main: {
     combinedResults: 'getCombinedKeywordResults()',  // 고정확도 결과
-    sentimentChart: '감성 분석 차트',
+    sentimentChart: '키워드 기반 감성 분석 차트',
     trendAnalysis: '트렌드 분석'
   },
   sidebar: {
     workerStatus: 'getWorkerStatus()',  // Worker 모니터링
-    companies: '기업별 분석 버튼'
+    companies: '기업별 분석 버튼 (두산퓨얠셀, LS ELECTRIC, 한국중부발전)'
   }
 };
 ```
 
 ### 2. 기업별 분석 페이지
-- **기업 선택**: 두산퓨얼셀, LS ELECTRIC
+- **기업 선택**: 두산퓨얼셀, LS ELECTRIC, 한국중부발전
 - **실시간 분석**: `analyzeCompanySASB()`
 - **Worker 결과**: `getCompanyWorkerResults()`
 
@@ -583,10 +696,26 @@ const analysis = await analyzeCompanySASB('두산퓨얼셀');
 
 // 4. Worker 상태 모니터링
 const workerStatus = await getWorkerStatus();
+
+// 5. 키워드 추적 분석 (NEW!)
+const dashboard = new SASBDashboard();
+await dashboard.analyzeCompanyWithKeywordTracking('두산퓨얼셀');
+
+// 6. 키워드 분석 결과 확인
+if (analysis.keyword_analysis) {
+  console.log('🔍 키워드 분석:', {
+    totalKeywords: analysis.keyword_analysis.total_unique_keywords,
+    avgScore: analysis.keyword_analysis.keyword_matching_performance.average_match_score,
+    companyKeywords: analysis.keyword_analysis.company_keywords,
+    sasbKeywords: analysis.keyword_analysis.sasb_keywords
+  });
+}
 ```
 
 **🎯 핵심 특징**: 
 - **고정확도**: 조합 키워드 시스템으로 관련성 높은 뉴스만 수집
 - **고성능**: Worker 백그라운드 처리로 빠른 응답
 - **실시간**: 필요시 즉시 분석 가능
-- **지능형**: ML 기반 한국어 감성 분석 
+- **지능형**: 키워드 기반 ESG/SASB 특화 감성 분석 (79개 키워드)
+- **확장성**: 3개 회사 지원 (두산퓨얼셀, LS ELECTRIC, 한국중부발전)
+- **🔍 키워드 추적**: 매칭 키워드, 관련성 점수, 감성분석 키워드 제공 

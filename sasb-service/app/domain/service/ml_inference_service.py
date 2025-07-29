@@ -50,9 +50,10 @@ class MLInferenceService:
             logging.warning("MODEL_NAME 또는 MODEL_BASE_PATH가 설정되지 않아 모델을 로드하지 않았습니다.")
 
 
-    def analyze_sentiment(self, text: str) -> dict:
+    def analyze_sentiment(self, text: str, description: str = None) -> dict:
         """
         Analyzes the sentiment of a single text string.
+        Enhanced to support both title and description analysis.
         """
         if not self.model or not self.tokenizer:
             logging.warning("모델이 로드되지 않아 감성 분석을 중립으로 처리합니다.")
@@ -64,7 +65,12 @@ class MLInferenceService:
             return {"sentiment": "중립", "confidence": 0.0}
 
         try:
-            inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=512).to(self.device)
+            # 제목 + 설명 결합 분석 (ML 모델용)
+            full_text = text
+            if description and isinstance(description, str) and description.strip():
+                full_text = f"{text} {description}"
+                
+            inputs = self.tokenizer(full_text, return_tensors="pt", truncation=True, max_length=512).to(self.device)
             
             with torch.no_grad():
                 outputs = self.model(**inputs)

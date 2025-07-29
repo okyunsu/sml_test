@@ -61,16 +61,30 @@ class AnalysisService:
         analyzed_articles = []
         for news_item in unique_news_items:
             try:
-                sentiment_result = self.ml_inference_service.analyze_sentiment(news_item.title)
+                # 📊 개선된 감성 분석: 제목 + 설명 결합 분석
+                sentiment_result = self.ml_inference_service.analyze_sentiment(
+                    text=news_item.title,
+                    description=news_item.description
+                )
                 analyzed_article = AnalyzedNewsArticle(
                     title=news_item.title,
                     link=news_item.link,
                     description=news_item.description,
-                    sentiment=SentimentResult(**sentiment_result)
+                    sentiment=SentimentResult(**sentiment_result),
+                    matched_keywords=None  # 이 메서드에서는 키워드 정보 없음
                 )
                 analyzed_articles.append(analyzed_article)
             except Exception as e:
-                logging.error(f"기사 분석 중 오류 발생: {e}", exc_info=True)
+                logging.error(f"뉴스 분석 중 오류 발생: {e}", exc_info=True)
+                # 오류 발생 시에도 기본 정보는 유지
+                analyzed_article = AnalyzedNewsArticle(
+                    title=news_item.title,
+                    link=news_item.link,
+                    description=news_item.description,
+                    sentiment=SentimentResult(sentiment="중립", confidence=0.0),
+                    matched_keywords=None
+                )
+                analyzed_articles.append(analyzed_article)
 
         logging.info(f"{len(analyzed_articles)}개의 기사에 대한 분석 완료.")
         return analyzed_articles
@@ -239,7 +253,11 @@ class AnalysisService:
             matched_keywords = item_data["matched_keywords"]
             
             try:
-                sentiment_result = self.ml_inference_service.analyze_sentiment(news_item.title)
+                # 📊 개선된 감성 분석: 제목 + 설명 결합 분석
+                sentiment_result = self.ml_inference_service.analyze_sentiment(
+                    text=news_item.title,
+                    description=news_item.description
+                )
                 analyzed_article = AnalyzedNewsArticle(
                     title=news_item.title,
                     link=news_item.link,
@@ -250,6 +268,15 @@ class AnalysisService:
                 analyzed_articles.append(analyzed_article)
             except Exception as e:
                 logging.error(f"기사 분석 중 오류 발생 (키워드: {matched_keywords}): {e}", exc_info=True)
+                # 오류 발생 시에도 기본 정보는 유지
+                analyzed_article = AnalyzedNewsArticle(
+                    title=news_item.title,
+                    link=news_item.link,
+                    description=news_item.description,
+                    sentiment=SentimentResult(sentiment="중립", confidence=0.0),
+                    matched_keywords=matched_keywords
+                )
+                analyzed_articles.append(analyzed_article)
         
         logging.info(f"🎯 {len(analyzed_articles)}개 기사 감정 분석 완료 (키워드 정보 포함)")
         return analyzed_articles
@@ -260,16 +287,30 @@ class AnalysisService:
         
         for news_item in news_items:
             try:
-                sentiment_result = self.ml_inference_service.analyze_sentiment(news_item.title)
+                # 📊 개선된 감성 분석: 제목 + 설명 결합 분석
+                sentiment_result = self.ml_inference_service.analyze_sentiment(
+                    text=news_item.title,
+                    description=news_item.description
+                )
                 analyzed_article = AnalyzedNewsArticle(
                     title=news_item.title,
                     link=news_item.link,
                     description=news_item.description,
-                    sentiment=SentimentResult(**sentiment_result)
+                    sentiment=SentimentResult(**sentiment_result),
+                    matched_keywords=None  # 이 메서드에서는 키워드 정보 없음
                 )
                 analyzed_articles.append(analyzed_article)
             except Exception as e:
                 logging.error(f"기사 분석 중 오류 발생: {e}", exc_info=True)
+                # 오류 발생 시에도 기본 정보는 유지
+                analyzed_article = AnalyzedNewsArticle(
+                    title=news_item.title,
+                    link=news_item.link,
+                    description=news_item.description,
+                    sentiment=SentimentResult(sentiment="중립", confidence=0.0),
+                    matched_keywords=None
+                )
+                analyzed_articles.append(analyzed_article)
         
         logging.info(f"{len(analyzed_articles)}개 기사 감정 분석 완료")
         return analyzed_articles

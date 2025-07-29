@@ -6,8 +6,10 @@
 
 ### Base URL
 ```
-Gateway를 통한 접근: http://localhost:8080/gateway/v1/material
-Direct 접근 (개발용): http://localhost:8004
+🚀 Railway Production: https://material-production.up.railway.app
+Gateway를 통한 접근: https://material-production.up.railway.app/api/v1
+Direct 접근 (Production): https://material-production.up.railway.app
+로컬 개발용: http://localhost:8004
 ```
 
 ### 헤더 설정
@@ -26,7 +28,7 @@ Direct 접근 (개발용): http://localhost:8004
 
 #### 1.1 서비스 상태 확인
 ```http
-GET /gateway/v1/material/api/v1/materiality/health
+GET https://material-production.up.railway.app/api/v1/materiality/health
 ```
 **용도**: 서비스 상태 확인 (헬스체크)  
 **응답 예시**:
@@ -40,14 +42,14 @@ GET /gateway/v1/material/api/v1/materiality/health
 
 #### 1.2 지원 기업 목록 조회
 ```http
-GET /gateway/v1/material/api/v1/materiality/companies
+GET https://material-production.up.railway.app/api/v1/materiality/companies
 ```
 **용도**: 분석 가능한 기업 목록 조회  
 **응답 예시**:
 ```json
 {
   "status": "success",
-  "total_companies": 2,
+  "total_companies": 3,
   "companies": [
     {
       "company_name": "두산퓨얼셀",
@@ -58,6 +60,11 @@ GET /gateway/v1/material/api/v1/materiality/companies
       "company_name": "LS ELECTRIC",
       "has_assessment": true, 
       "available_years": [2024, 2025]
+    },
+    {
+      "company_name": "한국중부발전",
+      "has_assessment": true,
+      "available_years": [2024, 2025]
     }
   ]
 }
@@ -66,15 +73,15 @@ GET /gateway/v1/material/api/v1/materiality/companies
 
 #### 1.3 특정 기업 중대성 평가 조회
 ```http
-GET /gateway/v1/material/api/v1/materiality/companies/{company_name}/assessment/{year}
+GET https://material-production.up.railway.app/api/v1/materiality/companies/{company_name}/assessment/{year}
 ```
 **매개변수**:
-- `company_name`: 기업명 (예: "두산퓨얼셀", "LS ELECTRIC")
+- `company_name`: 기업명 (예: "두산퓨얼셀", "LS ELECTRIC", "한국중부발전")
 - `year`: 연도 (예: 2024)
 
 **예시 요청**:
 ```http
-GET /gateway/v1/material/api/v1/materiality/companies/두산퓨얼셀/assessment/2024
+GET https://material-production.up.railway.app/api/v1/materiality/companies/두산퓨얼셀/assessment/2024
 ```
 
 **응답 예시**:
@@ -106,7 +113,7 @@ GET /gateway/v1/material/api/v1/materiality/companies/두산퓨얼셀/assessment
 
 #### 1.4 지원 산업 목록 조회
 ```http
-GET /gateway/v1/material/api/v1/materiality/industries
+GET https://material-production.up.railway.app/api/v1/materiality/industries
 ```
 **용도**: 산업별 분석 가능한 산업 목록 조회  
 **응답 예시**:
@@ -119,7 +126,7 @@ GET /gateway/v1/material/api/v1/materiality/industries
       "industry_name": "신재생에너지",
       "description": "태양광, 풍력, 연료전지 등 신재생에너지 산업",
       "key_sasb_topics": ["기후변화 대응", "환경 영향", "에너지 효율"],
-      "related_companies": ["두산퓨얼셀", "LS ELECTRIC"]
+      "related_companies": ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"]
     }
   ]
 }
@@ -127,7 +134,7 @@ GET /gateway/v1/material/api/v1/materiality/industries
 
 #### 1.5 기업별 중대성 평가 비교
 ```http
-GET /gateway/v1/material/api/v1/materiality/companies/{company_name}/compare?year1={year1}&year2={year2}
+GET https://material-production.up.railway.app/api/v1/materiality/companies/{company_name}/compare?year1={year1}&year2={year2}
 ```
 **매개변수**:
 - `company_name`: 기업명
@@ -136,7 +143,7 @@ GET /gateway/v1/material/api/v1/materiality/companies/{company_name}/compare?yea
 
 **예시 요청**:
 ```http
-GET /gateway/v1/material/api/v1/materiality/companies/두산퓨얼셀/compare?year1=2024&year2=2025
+GET https://material-production.up.railway.app/api/v1/materiality/companies/두산퓨얼셀/compare?year1=2024&year2=2025
 ```
 
 **응답 예시**:
@@ -176,7 +183,7 @@ GET /gateway/v1/material/api/v1/materiality/companies/두산퓨얼셀/compare?ye
 
 #### 2.1 기업별 중대성 분석 (핵심 기능)
 ```http
-POST /gateway/v1/material/api/v1/materiality/companies/{company_name}/analyze
+POST https://material-production.up.railway.app/api/v1/materiality/companies/{company_name}/analyze
 ```
 **매개변수**:
 - `company_name`: 기업명 (Path Parameter)
@@ -186,7 +193,7 @@ POST /gateway/v1/material/api/v1/materiality/companies/{company_name}/analyze
 
 **예시 요청**:
 ```http
-POST /gateway/v1/material/api/v1/materiality/companies/두산퓨얼셀/analyze?year=2025&include_news=true&max_articles=100
+POST https://material-production.up.railway.app/api/v1/materiality/companies/두산퓨얼셀/analyze?year=2025&include_news=true&max_articles=100
 ```
 
 **응답 예시**:
@@ -209,13 +216,45 @@ POST /gateway/v1/material/api/v1/materiality/companies/두산퓨얼셀/analyze?y
   "news_analysis": {
     "total_articles": 85,
     "analysis_period": "2024년 기준 2025년 전망",
-    "search_strategy": "기업명 + 특화키워드 + 산업키워드 조합",
+    "search_strategy": "광범위한 키워드 매핑 + 회사별 특화 키워드",
+    "search_keywords": {
+      "company_keywords": ["두산퓨얼셀", "Doosan FuelCell", "두산"],
+      "sasb_keywords": ["탄소중립", "온실가스", "ESG", "지속가능", "친환경", "재생에너지", "에너지효율", "안전보건", "반부패", "공급망"],
+      "total_keywords_used": 13
+    },
+    "topic_analysis": [
+      {
+        "topic_name": "기후변화 대응",
+        "related_keywords": ["기후변화", "탄소중립", "온실가스", "탄소배출", "넷제로", "연료전지", "수소에너지", "청정에너지"],
+        "total_news_count": 45,
+        "relevant_news_count": 23,
+        "mention_summary": "총 23회 언급",
+        "keyword_matching_stats": {
+          "high_relevance_articles": 15,
+          "medium_relevance_articles": 8,
+          "average_relevance_score": 0.72
+        }
+      },
+      {
+        "topic_name": "순환경제",
+        "related_keywords": ["순환경제", "재활용", "재사용", "폐기물", "자원순환", "지속가능", "친환경"],
+        "total_news_count": 12,
+        "relevant_news_count": 8,
+        "mention_summary": "총 8회 언급",
+        "keyword_matching_stats": {
+          "high_relevance_articles": 5,
+          "medium_relevance_articles": 3,
+          "average_relevance_score": 0.58
+        }
+      }
+    ],
     "key_changes": [
       {
         "topic": "기후변화 대응",
         "change_type": "increased_importance",
         "confidence": 0.8,
-        "rationale": "연료전지 + 탄소중립 관련 뉴스 급증"
+        "rationale": "연료전지 + 탄소중립 관련 뉴스 급증",
+        "supporting_keywords": ["연료전지", "탄소중립", "수소에너지"]
       }
     ]
   },
@@ -232,7 +271,7 @@ POST /gateway/v1/material/api/v1/materiality/companies/두산퓨얼셀/analyze?y
 
 #### 2.2 산업별 중대성 분석
 ```http
-POST /gateway/v1/material/api/v1/materiality/industries/{industry}/analyze
+POST https://material-production.up.railway.app/api/v1/materiality/industries/{industry}/analyze
 ```
 **매개변수**:
 - `industry`: 산업명 (Path Parameter, 예: "신재생에너지")
@@ -242,7 +281,7 @@ POST /gateway/v1/material/api/v1/materiality/industries/{industry}/analyze
 
 **예시 요청**:
 ```http
-POST /gateway/v1/material/api/v1/materiality/industries/신재생에너지/analyze?year=2025&max_articles=200
+POST https://material-production.up.railway.app/api/v1/materiality/industries/신재생에너지/analyze?year=2025&max_articles=200
 ```
 
 **응답 예시**:
@@ -252,21 +291,29 @@ POST /gateway/v1/material/api/v1/materiality/industries/신재생에너지/analy
     "industry": "신재생에너지",
     "analysis_year": 2025,
     "analysis_date": "2025-01-15T10:30:00.000Z",
-    "companies_analyzed": ["두산퓨얼셀", "LS ELECTRIC"],
+    "companies_analyzed": ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"],
     "disclaimer": "산업 분석 결과는 참고용입니다."
   },
   "industry_info": {
     "description": "태양광, 풍력, 연료전지 등 신재생에너지 산업",
     "key_sasb_topics": ["기후변화 대응", "환경 영향", "에너지 효율"],
-    "related_companies": ["두산퓨얼셀", "LS ELECTRIC"]
+    "related_companies": ["두산퓨얠셀", "LS ELECTRIC", "한국중부발전"]
   },
   "materiality_analysis": {
+    "search_keywords": {
+      "industry_keywords": ["신재생에너지", "태양광", "풍력", "연료전지", "ESS", "발전", "전력", "그리드"],
+      "sasb_keywords": ["기후변화", "탄소중립", "환경영향", "에너지효율", "안전", "혁신"],
+      "company_specific": ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"],
+      "total_keywords_used": 17
+    },
     "key_issues": [
       {
         "issue_name": "기후변화 대응",
         "mention_count": 45,
         "relevance_score": 0.65,
-        "trend": "increasing"
+        "trend": "increasing",
+        "matched_keywords": ["기후변화", "탄소중립", "온실가스", "넷제로"],
+        "top_companies_mentioned": ["두산퓨얼셀", "한국중부발전"]
       }
     ],
     "emerging_issues": [
@@ -274,7 +321,9 @@ POST /gateway/v1/material/api/v1/materiality/industries/신재생에너지/analy
         "issue_name": "수소 경제",
         "mention_count": 12,
         "trend": "emerging",
-        "impact_level": "high"
+        "impact_level": "high",
+        "matched_keywords": ["수소", "수소경제", "수소에너지", "연료전지"],
+        "growth_potential": "매우 높음"
       }
     ]
   },
@@ -284,7 +333,7 @@ POST /gateway/v1/material/api/v1/materiality/industries/신재생에너지/analy
         "trend_name": "수소 에너지 확산",
         "trend_direction": "increasing", 
         "impact_level": "high",
-        "companies_affected": ["두산퓨얼셀"]
+        "companies_affected": ["두산퓨얼셀", "한국중부발전"]
       }
     ]
   }
@@ -300,7 +349,7 @@ POST /gateway/v1/material/api/v1/materiality/industries/신재생에너지/analy
 ```javascript
 async function getCompanies() {
   try {
-    const response = await fetch('/gateway/v1/material/api/v1/materiality/companies', {
+    const response = await fetch('https://material-production.up.railway.app/api/v1/materiality/companies', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -338,7 +387,7 @@ async function analyzeCompany(companyName, options = {}) {
   
   try {
     const response = await fetch(
-      `/gateway/v1/material/api/v1/materiality/companies/${encodeURIComponent(companyName)}/analyze?${params}`,
+      `https://material-production.up.railway.app/api/v1/materiality/companies/${encodeURIComponent(companyName)}/analyze?${params}`,
       {
         method: 'POST',
         headers: {
@@ -390,6 +439,43 @@ async function handleAnalyzeClick() {
     displayAnalysisResult(result);
   } catch (error) {
     showErrorMessage('분석 중 오류가 발생했습니다.');
+  } finally {
+    hideLoadingSpinner();
+  }
+}
+```
+
+### 4. 3개 회사 지원 확인
+```javascript
+async function getSupportedCompanies() {
+  try {
+    const companies = await getCompanies();
+    console.log('지원 회사 목록:', companies.map(c => c.company_name));
+    // 예상 출력: ["두산퓨얼셀", "LS ELECTRIC", "한국중부발전"]
+    
+    return companies;
+  } catch (error) {
+    console.error('기업 목록 조회 실패:', error);
+    return [];
+  }
+}
+
+// 한국중부발전 분석 예시
+async function analyzeKomipo() {
+  try {
+    showLoadingSpinner('한국중부발전 분석 중...');
+    
+    const result = await analyzeCompany('한국중부발전', {
+      year: 2025,
+      includeNews: true,
+      maxArticles: 100
+    });
+    
+    console.log('한국중부발전 분석 결과:', result);
+    displayAnalysisResult(result);
+    
+  } catch (error) {
+    showErrorMessage('한국중부발전 분석 중 오류가 발생했습니다.');
   } finally {
     hideLoadingSpinner();
   }
@@ -448,7 +534,7 @@ async function handleApiCall(apiCall) {
 ## 📊 UI 구성 권장사항
 
 ### 1. 메인 대시보드
-- **기업 선택 드롭다운**: `GET /companies`
+- **기업 선택 드롭다운**: `GET /companies` (3개 회사)
 - **분석 실행 버튼**: `POST /companies/{name}/analyze`
 - **결과 표시 영역**: 분석 결과 시각화
 
@@ -505,19 +591,162 @@ function validateAnalysisResult(result) {
 }
 ```
 
----
-
-## 🚀 Quick Start
-
+### 5. 한국중부발전 관련 특별 처리
 ```javascript
-// 1. 기업 목록 조회 후 드롭다운 생성
-const companies = await getCompanies();
+// 한국중부발전은 발전/전력 업계 특성 반영
+function getCompanySpecificKeywords(companyName) {
+  const keywords = {
+    "두산퓨얼셀": ["연료전지", "수소", "청정에너지"],
+    "LS ELECTRIC": ["전력", "자동화", "스마트그리드"],
+    "한국중부발전": ["발전", "화력", "친환경전환", "탄소중립"]
+  };
+  
+  return keywords[companyName] || [];
+}
 
-// 2. 두산퓨얼셀 2025년 분석 실행
-const analysis = await analyzeCompany('두산퓨얼셀', { year: 2025 });
+// 분석 결과에서 키워드 정보 추출 및 활용
+function extractKeywordInsights(analysisResult) {
+  const newsAnalysis = analysisResult.news_analysis;
+  
+  if (!newsAnalysis) return null;
+  
+  return {
+    // 전체 검색 키워드 정보
+    searchSummary: {
+      companyKeywords: newsAnalysis.search_keywords?.company_keywords || [],
+      sasbKeywords: newsAnalysis.search_keywords?.sasb_keywords || [],
+      totalKeywords: newsAnalysis.search_keywords?.total_keywords_used || 0
+    },
+    
+    // 토픽별 키워드 매칭 성과
+    topicPerformance: newsAnalysis.topic_analysis?.map(topic => ({
+      topicName: topic.topic_name,
+      keywordCount: topic.related_keywords?.length || 0,
+      matchingRate: topic.relevant_news_count / topic.total_news_count,
+      topKeywords: topic.related_keywords?.slice(0, 5) || [],
+      relevanceScore: topic.keyword_matching_stats?.average_relevance_score || 0
+    })) || [],
+    
+    // 성과가 좋은 키워드 식별
+    bestPerformingKeywords: newsAnalysis.key_changes?.map(change => ({
+      topic: change.topic,
+      keywords: change.supporting_keywords || [],
+      impact: change.change_type,
+      confidence: change.confidence
+    })) || []
+  };
+}
 
-// 3. 결과 표시
-displayAnalysisResult(analysis);
+// 키워드 성과 시각화
+function displayKeywordPerformance(keywordInsights) {
+  const container = document.getElementById('keyword-analysis');
+  
+  container.innerHTML = `
+    <div class="keyword-summary">
+      <h3>🔍 검색 키워드 분석</h3>
+      <div class="search-stats">
+        <span class="stat">회사 키워드: ${keywordInsights.searchSummary.companyKeywords.length}개</span>
+        <span class="stat">SASB 키워드: ${keywordInsights.searchSummary.sasbKeywords.length}개</span>
+        <span class="stat">총 키워드: ${keywordInsights.searchSummary.totalKeywords}개</span>
+      </div>
+    </div>
+    
+    <div class="topic-performance">
+      <h4>📊 토픽별 키워드 매칭 성과</h4>
+      ${keywordInsights.topicPerformance.map(topic => `
+        <div class="topic-card">
+          <h5>${topic.topicName}</h5>
+          <div class="performance-metrics">
+            <span class="metric">매칭률: ${(topic.matchingRate * 100).toFixed(1)}%</span>
+            <span class="metric">관련성: ${(topic.relevanceScore * 100).toFixed(1)}점</span>
+            <span class="metric">키워드: ${topic.keywordCount}개</span>
+          </div>
+          <div class="top-keywords">
+            <strong>핵심 키워드:</strong> 
+            ${topic.topKeywords.map(kw => `<span class="keyword-tag">${kw}</span>`).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    
+    <div class="best-keywords">
+      <h4>🎯 성과 우수 키워드</h4>
+      ${keywordInsights.bestPerformingKeywords.map(item => `
+        <div class="keyword-impact">
+          <strong>${item.topic}</strong> (${item.impact}): 
+          ${item.keywords.map(kw => `<span class="impact-keyword">${kw}</span>`).join(', ')}
+          <span class="confidence">(신뢰도: ${(item.confidence * 100).toFixed(1)}%)</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// 사용 예시
+async function analyzeWithKeywordTracking(companyName) {
+  try {
+    const result = await analyzeCompany(companyName, { year: 2025 });
+    
+    // 기본 분석 결과 표시
+    displayAnalysisResult(result);
+    
+    // 키워드 인사이트 추출 및 표시
+    const keywordInsights = extractKeywordInsights(result);
+    if (keywordInsights) {
+      displayKeywordPerformance(keywordInsights);
+      
+      // 콘솔에 키워드 분석 로그
+      console.log('🔍 키워드 분석 결과:', {
+        totalKeywords: keywordInsights.searchSummary.totalKeywords,
+        bestTopic: keywordInsights.topicPerformance.reduce((best, topic) => 
+          topic.relevanceScore > (best?.relevanceScore || 0) ? topic : best
+        ),
+        topKeywords: keywordInsights.bestPerformingKeywords.flatMap(item => item.keywords)
+      });
+    }
+    
+  } catch (error) {
+    console.error('키워드 추적 분석 실패:', error);
+  }
+}
 ```
 
-**🎯 핵심**: 모든 API는 게이트웨이(`/gateway/v1/material`)를 통해 접근하며, 비동기 처리와 에러 핸들링이 필수입니다. 
+---
+
+## 🚀 Quick Start (3개 회사 지원)
+
+```javascript
+// 1. 기업 목록 조회 후 드롭다운 생성 (3개 회사)
+const companies = await getCompanies();
+console.log('지원 회사:', companies.length); // 3
+
+// 2. 두산퓨얼셀 2025년 분석 실행
+const doosanAnalysis = await analyzeCompany('두산퓨얼셀', { year: 2025 });
+
+// 3. LS ELECTRIC 2025년 분석 실행  
+const lsAnalysis = await analyzeCompany('LS ELECTRIC', { year: 2025 });
+
+// 4. 한국중부발전 2025년 분석 실행 (NEW!)
+const komipoAnalysis = await analyzeCompany('한국중부발전', { year: 2025 });
+
+// 5. 결과 표시
+displayAnalysisResult(doosanAnalysis);
+displayAnalysisResult(lsAnalysis);
+displayAnalysisResult(komipoAnalysis);
+
+// 6. 키워드 추적 분석 (NEW!)
+await analyzeWithKeywordTracking('두산퓨얼셀');
+
+// 7. 키워드 인사이트 확인
+const keywordInsights = extractKeywordInsights(doosanAnalysis);
+console.log('🔍 검색 키워드:', keywordInsights?.searchSummary);
+console.log('📊 토픽별 성과:', keywordInsights?.topicPerformance);
+```
+
+**🎯 핵심**: 
+- **3개 회사 지원**: 두산퓨얼셀, LS ELECTRIC, 한국중부발전
+- **광범위한 키워드 매핑**: 실제 뉴스와 높은 매칭률
+- **Railway Production**: https://material-production.up.railway.app
+- **실시간 분석**: SASB Service와 연동한 종합 분석
+- **비동기 처리**: 모든 API는 비동기 처리와 에러 핸들링 필수
+- **🔍 키워드 추적**: 검색 키워드, 매칭 성과, 관련성 점수 제공 

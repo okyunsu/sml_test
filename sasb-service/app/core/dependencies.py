@@ -88,31 +88,59 @@ class DependencyContainer:
                         "논란", "갈등", "분쟁", "반대", "항의", "규탄", "비판", "문제", "우려", "불안"
                     ]
                     
-                def analyze_sentiment(self, text: str) -> dict:
-                    """키워드 기반 감성 분석"""
+                def analyze_sentiment(self, text: str, description: str = None) -> dict:
+                    """개선된 키워드 기반 감성 분석"""
                     if not text or not isinstance(text, str) or not text.strip():
-                        return {"sentiment": "중립", "confidence": 0.0}
+                        return {"sentiment": "중립", "confidence": 0.0, "matched_positive_keywords": [], "matched_negative_keywords": []}
                     
-                    text_lower = text.lower()
+                    # 제목 + 설명 결합 분석
+                    full_text = text
+                    if description and isinstance(description, str) and description.strip():
+                        full_text = f"{text} {description}"
                     
-                    # 키워드 매칭 카운트
-                    positive_count = sum(1 for keyword in self.positive_keywords if keyword in text_lower)
-                    negative_count = sum(1 for keyword in self.negative_keywords if keyword in text_lower)
+                    # 한글 텍스트는 lower() 대신 strip()만 사용
+                    full_text = full_text.strip()
                     
-                    # 감성 판단 로직
+                    # 키워드 매칭 (정확한 매칭을 위해 공백으로 분리된 단어 단위로 검사)
+                    matched_positive = []
+                    matched_negative = []
+                    
+                    for keyword in self.positive_keywords:
+                        if keyword in full_text:
+                            matched_positive.append(keyword)
+                    
+                    for keyword in self.negative_keywords:
+                        if keyword in full_text:
+                            matched_negative.append(keyword)
+                    
+                    positive_count = len(matched_positive)
+                    negative_count = len(matched_negative)
+                    
+                    # 개선된 감성 판단 로직
                     if positive_count > negative_count:
                         sentiment = "긍정"
-                        # confidence: 0.6 ~ 0.9 (키워드 개수에 비례)
-                        confidence = min(0.6 + (positive_count - negative_count) * 0.1, 0.9)
+                        # confidence: 0.6 ~ 0.95 (키워드 개수와 차이에 비례)
+                        confidence = min(0.6 + (positive_count - negative_count) * 0.1, 0.95)
                     elif negative_count > positive_count:
                         sentiment = "부정"
-                        # confidence: 0.6 ~ 0.9 (키워드 개수에 비례)
-                        confidence = min(0.6 + (negative_count - positive_count) * 0.1, 0.9)
+                        # confidence: 0.6 ~ 0.95 (키워드 개수와 차이에 비례)
+                        confidence = min(0.6 + (negative_count - positive_count) * 0.1, 0.95)
+                    elif positive_count > 0 or negative_count > 0:
+                        sentiment = "중립"
+                        confidence = 0.4  # 키워드가 있지만 동점인 경우
                     else:
                         sentiment = "중립"
-                        confidence = 0.5 if positive_count > 0 or negative_count > 0 else 0.0
-                        
-                    return {"sentiment": sentiment, "confidence": confidence}
+                        confidence = 0.0  # 키워드가 전혀 없는 경우
+                    
+                    return {
+                        "sentiment": sentiment, 
+                        "confidence": confidence,
+                        "matched_positive_keywords": matched_positive[:5],  # 상위 5개만
+                        "matched_negative_keywords": matched_negative[:5],   # 상위 5개만
+                        "analysis_method": "keyword_based",
+                        "total_positive_matches": positive_count,
+                        "total_negative_matches": negative_count
+                    }
             
             ml_inference_service = MockMLInferenceService()
         else:
